@@ -9,3 +9,13 @@
 .povBoostLabel{font-size:9px;letter-spacing:.12em;color:#cbd2dc}
 .povBoostBar{width:100%;height:7px;border-radius:5px;background:#ffffff22;overflow:hidden;margin-top:3px}
 .povBoostFill{height:100%;width:0%;border-radius:5px;background:#fbbf24;transition:width .05s linear}
+
+/* Replay coaching overlays */
+.sap-bc-floating-track{z-index:6!important}
+.sap-bc-boost-bar{min-width:42px!important;max-width:42px!important;width:42px!important;min-height:42px!important;height:42px!important;padding:0!important;border-radius:50%!important;overflow:hidden!important;background:conic-gradient(var(--sap-bc-circle-color,#3b82f6) var(--boost,0%),rgba(255,255,255,.16) 0)!important;border:2px solid rgba(255,255,255,.8)!important;box-shadow:0 3px 10px #0009!important;backdrop-filter:none!important}
+.sap-bc-boost-bar-orange{--sap-bc-circle-color:#f59e0b}
+.sap-bc-boost-bar-blue{--sap-bc-circle-color:#3b82f6}
+.sap-bc-boost-fill{display:none!important}
+.sap-bc-boost-text{width:100%;height:100%;padding:0!important;display:grid!important;place-items:center!important;color:#fff!important;font-size:13px!important;font-weight:900!important;text-shadow:0 1px 3px #000!important}
+.sap-bc-followed-hud{z-index:12!important}
+.drawCanvas.active{touch-action:none}
