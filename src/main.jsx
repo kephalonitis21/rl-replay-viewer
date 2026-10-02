@@ -64,7 +64,11 @@ function App(){
   function redraw(){const c=drawCanvas.current,v=viewport.current;if(!c||!v)return;const ctx=c.getContext("2d"),r=v.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);for(const st of drawHistory.current){ctx.save();ctx.globalCompositeOperation=st.tool==="erase"?"destination-out":"source-over";ctx.strokeStyle=st.color;ctx.lineWidth=st.width;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();st.points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.restore()}}
   function startDraw(e){if(!drawMode)return;drawing.current=true;const r=drawCanvas.current.getBoundingClientRect();drawHistory.current.push({tool:drawTool,color:drawColor,width:drawThickness,points:[{x:e.clientX-r.left,y:e.clientY-r.top}]});drawRedo.current=[];redraw()}
   function moveDraw(e){if(!drawing.current)return;const r=drawCanvas.current.getBoundingClientRect(),st=drawHistory.current.at(-1);st.points.push({x:e.clientX-r.left,y:e.clientY-r.top});redraw()}
-  function endDraw(){drawing.current=false}
+  function endDraw(e){drawing.current=false;try{e?.currentTarget?.releasePointerCapture?.(e.pointerId)}catch{}}
+  function toggleDraw(){setDrawMode(v=>{const next=!v;const p=player.current;if(p?.controls)p.controls.enabled=!next&&!flyModeRef.current;return next})}
+  function handleDrawPointerDown(e){if(!drawMode)return;e.currentTarget.setPointerCapture?.(e.pointerId);startDraw(e)}
+  function handleDrawPointerMove(e){if(drawMode)moveDraw(e)}
+  function handleViewportPointerDown(){if(flyModeRef.current)lockFly()}
   function undoDraw(){if(drawHistory.current.length){drawRedo.current.push(drawHistory.current.pop());redraw()}}
   function redoDraw(){if(drawRedo.current.length){drawHistory.current.push(drawRedo.current.pop());redraw()}}
   function cameraPose(position,target,up=[0,1,0],fov=48){const p=player.current;if(!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});const c=p.camera;c.position.set(...position);c.up.set(...up);c.fov=fov;c.updateProjectionMatrix();c.lookAt(...target);p.controls.target.set(...target);p.controls.update();setSelected("");setCameraMode("free");flyModeRef.current=false}
@@ -73,7 +77,7 @@ function App(){
   function loadCustomCamera(id){const item=customCameras.find(x=>x.id===id),p=player.current;if(!item||!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.camera.position.fromArray(item.position);p.camera.quaternion.fromArray(item.quaternion);p.camera.fov=item.fov||48;p.camera.updateProjectionMatrix();p.controls.enabled=true;setSelected("");setCameraMode("free")}
   function deleteCustomCamera(id){const next=customCameras.filter(x=>x.id!==id);setCustomCameras(next);localStorage.setItem(CAMERA_STORAGE,JSON.stringify(next));if(cameraPreset==="custom:"+id)setCameraPreset("")}
   function startFlyLoop(){if(flyFrame.current)return;const tick=(now)=>{const p=player.current;if(!p||!flyModeRef.current){flyFrame.current=null;return}const dt=Math.min(.05,(now-flyState.current.last)/1000);flyState.current.last=now;const c=p.camera,spd=1400*(flyKeys.current.has("ShiftLeft")?2.5:1),forward=new THREE.Vector3(0,0,-1).applyQuaternion(c.quaternion),right=new THREE.Vector3(1,0,0).applyQuaternion(c.quaternion);if(flyKeys.current.has("KeyW"))c.position.addScaledVector(forward,spd*dt);if(flyKeys.current.has("KeyS"))c.position.addScaledVector(forward,-spd*dt);if(flyKeys.current.has("KeyD"))c.position.addScaledVector(right,spd*dt);if(flyKeys.current.has("KeyA"))c.position.addScaledVector(right,-spd*dt);if(flyKeys.current.has("Space"))c.position.y+=spd*dt;if(flyKeys.current.has("ControlLeft"))c.position.y-=spd*dt;p.controls.target.copy(c.position).addScaledVector(forward,1000);flyFrame.current=requestAnimationFrame(tick)};flyFrame.current=requestAnimationFrame(tick)}
-  function toggleFly(){const p=player.current;if(!p)return;flyModeRef.current=!flyModeRef.current;setCameraMode(flyModeRef.current?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!flyModeRef.current;if(flyModeRef.current){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};startFlyLoop()}else if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}
+  function toggleFly(){const p=player.current;if(!p)return;flyModeRef.current=!flyModeRef.current;setCameraMode(flyModeRef.current?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!flyModeRef.current&&!drawMode;if(flyModeRef.current){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};startFlyLoop();requestAnimationFrame(()=>viewport.current?.requestPointerLock?.())}else{flyKeys.current.clear();if(document.pointerLockElement===viewport.current)document.exitPointerLock?.();if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}}
   function onFlyMouse(e){if(!flyModeRef.current||document.pointerLockElement!==viewport.current)return;const s=flyState.current;s.yaw-=e.movementX*.002;s.pitch=Math.max(-1.45,Math.min(1.45,s.pitch-e.movementY*.002));player.current.camera.rotation.set(s.pitch,s.yaw,0,"YXZ")}
   function lockFly(){if(flyModeRef.current)viewport.current?.requestPointerLock?.()}
 
@@ -83,7 +87,7 @@ function App(){
       const tag=e.target?.tagName;
       if(tag==="INPUT"||tag==="SELECT"||tag==="BUTTON")return;
       if(e.code==="Space"){e.preventDefault();if(!flyModeRef.current)togglePlay()}
-      else if(e.code==="KeyV"){e.preventDefault();setDrawMode(v=>!v)}
+      else if(e.code==="KeyV"){e.preventDefault();toggleDraw()}
       else if(e.code==="KeyF"){e.preventDefault();toggleFly()}
       else if(e.code==="KeyM"){e.preventDefault();setMiniMapVisible(v=>!v)}
       else if(e.code==="KeyB"){e.preventDefault();setBoostVisible(v=>!v)}
@@ -99,8 +103,11 @@ function App(){
     return()=>window.removeEventListener("keydown",key);
   });
 
+  useEffect(()=>{const down=e=>{if(flyModeRef.current&&!["INPUT","SELECT","BUTTON"].includes(e.target?.tagName))flyKeys.current.add(e.code)};const up=e=>flyKeys.current.delete(e.code);const blur=()=>flyKeys.current.clear();window.addEventListener("keydown",down);window.addEventListener("keyup",up);window.addEventListener("blur",blur);return()=>{window.removeEventListener("keydown",down);window.removeEventListener("keyup",up);window.removeEventListener("blur",blur)}});
+  useEffect(()=>{const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
+
   useEffect(()=>{resizeDrawing();const ro=new ResizeObserver(resizeDrawing);if(viewport.current)ro.observe(viewport.current);window.addEventListener("resize",resizeDrawing);return()=>{ro.disconnect();window.removeEventListener("resize",resizeDrawing)}},[loaded]);
-  useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none");root.querySelectorAll(".sap-bc-boost-bar").forEach(el=>el.style.display=boostVisible?"inline-flex":"none");root.querySelectorAll(".povBoostHud").forEach(el=>el.style.visibility=boostVisible?"visible":"hidden")},[miniMapVisible,boostVisible,loaded]);
+  useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none");root.querySelectorAll(".sap-bc-boost-bar").forEach(el=>el.style.display=boostVisible?"inline-flex":"none");root.querySelectorAll(".sap-bc-followed-hud").forEach(el=>el.style.display=boostVisible?"flex":"none")},[miniMapVisible,boostVisible,loaded]);
 
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
@@ -108,10 +115,13 @@ function App(){
       setStatus("Loading replay…");setLoaded(false);setPlaying(false);setProgress(0);setDuration(0);setReplayBallCam(true);
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
-      const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
-      const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone()),pos=obj.userData.__rlReplayNameplateBasePosition||(obj.userData.__rlReplayNameplateBasePosition=obj.position.clone()),sc=nameplateScaleRef.current;obj.scale.set(base.x*sc,base.y*sc,base.z);obj.position.set(pos.x,pos.y+base.y*40*(sc-1),pos.z)}})}});
+      const {createPlayer,createNameTagPlugin,createScoredTextPlugin,createBallchasingOverlayPlugin}=await import("@rlrml/player");
+      const ballOverlayPlugin=()=>createBallchasingOverlayPlugin({showFloatingNames:false,showFloatingBoostBars:true,showTeamBoostHud:false,showFollowedPlayerHud:true});
+      const boostCirclePlugin=()=>({id:"boost-circles",beforeRender(ctx){ctx.container.querySelectorAll(".sap-bc-boost-text").forEach(el=>{const m=el.textContent?.match(/^\s*(\d+)/);if(m)el.textContent=m[1]})}});
+      const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
+      const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
       const miniMapPlugin=()=>{let root=null,ballDot=null,dots=new Map();const map=v=>({x:50+(v.x/4120)*48,y:50-(v.z/5140)*48});return{id:"mini-map",setup(ctx){root=document.createElement("div");root.className="miniMapOverlay";root.innerHTML='<div class="miniMapField"><div class="miniMapGoal blue"></div><div class="miniMapGoal orange"></div><div class="miniMapBall"></div></div>';ctx.container.appendChild(root);ballDot=root.querySelector(".miniMapBall");ctx.player.adapter.getAllPlayers().forEach(p=>{const d=document.createElement("span");d.className="miniMapCar "+(p.team===0?"teamBlue":"teamOrange");root.firstElementChild.appendChild(d);dots.set(p.id,d)})},beforeRender(ctx){if(!root)return;const b=ctx.ball?.position;if(b){const q=map(b);ballDot.style.left=q.x+"%";ballDot.style.top=q.y+"%"}ctx.cars.forEach(car=>{const d=dots.get(car.id);if(d){const q=map(car.position);d.style.left=q.x+"%";d.style.top=q.y+"%";d.style.opacity=car.visible?"1":"0"}})},teardown(){root?.remove();dots.clear()}}};
-      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),createScoredTextPlugin()]});
+      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),ballOverlayPlugin(),boostCirclePlugin(),hideBallIndicatorPlugin(),createScoredTextPlugin()]});
       player.current=p;
       const renderer=p.renderer;
       renderer?.setPixelRatio?.(1);
@@ -128,8 +138,8 @@ function App(){
 
   return <main className="app">
     <header><div><h1>RL Replay Viewer</h1><span>Season 24 browser playback</span></div><label className="fileButton">Open replay<input type="file" accept=".replay" onChange={e=>loadReplay(e.target.files?.[0])}/></label></header>
-    <section className="viewer" ref={viewport} onDragOver={e=>e.preventDefault()} onDrop={drop}>
-      <div className="playerHost" ref={host}/>
+    <section className="viewer" ref={viewport} onPointerDown={handleViewportPointerDown} onMouseMove={onFlyMouse} onDragOver={e=>e.preventDefault()} onDrop={drop}>
+      <div className="playerHost" ref={host}/><canvas ref={drawCanvas} className={"drawCanvas "+(drawMode?"active":"")} onPointerDown={handleDrawPointerDown} onPointerMove={handleDrawPointerMove} onPointerUp={endDraw} onPointerCancel={endDraw}/>
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
       {loaded&&<div className="hud">
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
@@ -158,7 +168,7 @@ function App(){
               <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>changeNameplateScale(e.target.value)} aria-label="Nameplate size"/>
               <span>{nameplateScale.toFixed(2)}×</span>
             </label>
-            <div className="drawControls"><button onClick={()=>setDrawMode(v=>!v)}>{drawMode?"Exit Draw":"Draw"}</button>{drawMode&&<><select value={drawColor} onChange={e=>{setDrawColor(e.target.value);setDrawTool("pen")}}><option value="#ef4444">Red</option><option value="#3b82f6">Blue</option><option value="#ec4899">Pink</option><option value="#22c55e">Green</option></select><select value={drawTool} onChange={e=>setDrawTool(e.target.value)}><option value="pen">Pen</option><option value="erase">Erase</option></select><label className="thickness">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/></label><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button></>}</div>\n            <button onClick={fullscreen}>Fullscreen</button>
+            <div className="drawControls"><button onClick={toggleDraw}>{drawMode?"Exit Draw":"Draw"}</button>{drawMode&&<><select value={drawColor} onChange={e=>{setDrawColor(e.target.value);setDrawTool("pen")}}><option value="#ef4444">Red</option><option value="#3b82f6">Blue</option><option value="#ec4899">Pink</option><option value="#22c55e">Green</option></select><select value={drawTool} onChange={e=>setDrawTool(e.target.value)}><option value="pen">Pen</option><option value="erase">Erase</option></select><label className="thickness">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/></label><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button></>}</div>\n            <button onClick={fullscreen}>Fullscreen</button>
           </div>
           <div className="hints">Press <b>?</b> for shortcuts · <b>Space</b> Play/Pause · <b>V</b> Draw · <b>F</b> Fly Cam</div>
         </div>}
