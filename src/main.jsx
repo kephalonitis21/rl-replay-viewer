@@ -4,7 +4,7 @@ import "./styles.css";
 const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false);
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5);
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
   const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5);
 
@@ -56,6 +56,7 @@ function App(){
     p.setState({ballCamEnabled:enabled});
   }
   function toggleControls(){setControlsVisible(v=>!v)}
+  function changeNameplateScale(value){nameplateScaleRef.current=Number(value);setNameplateScale(Number(value))}
 
   useEffect(()=>{
     function key(e){
@@ -88,7 +89,7 @@ function App(){
             const image=obj.material?.map?.image;
             if(image?.width===256&&image?.height===80){
               const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());
-              obj.scale.set(base.x*nameplateScale,base.y*nameplateScale,base.z);
+              obj.scale.set(base.x*nameplateScaleRef.current,base.y*nameplateScaleRef.current,base.z);
             }
           });
         }
@@ -134,7 +135,7 @@ function App(){
             </select>
             <select value={selected} onChange={e=>choose(e.target.value)}><option value="">Free Camera</option>{players.map(p=><option key={p.id} value={p.id}>{p.name} POV</option>)}</select>
             <label className="nameplateControl">Names
-              <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>setNameplateScale(Number(e.target.value))} aria-label="Nameplate size"/>
+              <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>changeNameplateScale(e.target.value)} aria-label="Nameplate size"/>
               <span>{nameplateScale.toFixed(2)}×</span>
             </label>
             <button onClick={fullscreen}>Fullscreen</button>
