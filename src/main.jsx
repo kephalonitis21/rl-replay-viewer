@@ -1,6 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
 import {createRoot} from "react-dom/client";
-import {createPlayer,createNameTagPlugin,createScoredTextPlugin} from "@rlrml/player";
 import "./styles.css";
 const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 
@@ -27,8 +26,12 @@ function App(){
     try{
       setStatus("Loading replay…");setLoaded(false);player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
+      const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
       const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:false,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),createScoredTextPlugin()]});
       player.current=p;
+      const renderer=p.renderer;
+      renderer?.setPixelRatio?.(1);
+      if(renderer?.shadowMap)renderer.shadowMap.enabled=false;
       p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled)});
       const roster=p.replay?.players||[];setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));setSelected(roster[0]?.id||"");
       setLoaded(true);setStatus(file.name);
