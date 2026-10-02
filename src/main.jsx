@@ -2,16 +2,20 @@ import React,{useEffect,useRef,useState} from "react";
 import {createRoot} from "react-dom/client";
 import {createPlayer,createNameTagPlugin,createScoredTextPlugin} from "@rlrml/player";
 import "./styles.css";
-
 const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null);
-  const [status,setStatus]=useState("Drop a .replay file here");
-  const [loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
-  const [ballCam,setBallCam]=useState(false),[players,setPlayers]=useState([]);
-  const [selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0);
+  const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
+  const [ballCam,setBallCam]=useState(false),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0);
 
+  useEffect(()=>{
+    const originalRAF=window.requestAnimationFrame.bind(window),originalCAF=window.cancelAnimationFrame.bind(window);
+    let last=0,id=0;const timers=new Map();
+    window.requestAnimationFrame=cb=>{const n=++id;const delay=Math.max(0,16.67-(performance.now()-last));const t=window.setTimeout(()=>{timers.delete(n);const r=originalRAF(time=>{last=time;cb(time)});timers.set(n,r)},delay);timers.set(n,t);return n};
+    window.cancelAnimationFrame=n=>{const t=timers.get(n);if(t!==undefined){clearTimeout(t);originalCAF(t);timers.delete(n)}};
+    return()=>{window.requestAnimationFrame=originalRAF;window.cancelAnimationFrame=originalCAF;for(const t of timers.values())clearTimeout(t);timers.clear()};
+  },[]);
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{}},[]);
   function togglePlay(){const p=player.current;if(!p)return;const next=!p.snapshot?.playing;p.setState({playing:next});setPlaying(next)}
   function reset(){player.current?.setState({currentTime:0,playing:false});setPlaying(false)}
