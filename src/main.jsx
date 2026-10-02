@@ -8,7 +8,7 @@ const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0});
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
-  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
@@ -82,7 +82,13 @@ function App(){
       if(!loaded)return;
       const tag=e.target?.tagName;
       if(tag==="INPUT"||tag==="SELECT"||tag==="BUTTON")return;
-      if(e.code==="Space"){e.preventDefault();togglePlay()}
+      if(e.code==="Space"){e.preventDefault();if(!flyModeRef.current)togglePlay()}
+      else if(e.code==="KeyV"){e.preventDefault();setDrawMode(v=>!v)}
+      else if(e.code==="KeyF"){e.preventDefault();toggleFly()}
+      else if(e.code==="KeyM"){e.preventDefault();setMiniMapVisible(v=>!v)}
+      else if(e.code==="KeyB"){e.preventDefault();setBoostVisible(v=>!v)}
+      else if(e.key==="?"){e.preventDefault();setShortcutsOpen(v=>!v)}
+      else if(e.code==="Escape"){if(flyModeRef.current){e.preventDefault();toggleFly()}else if(drawMode){e.preventDefault();setDrawMode(false)}else if(shortcutsOpen){e.preventDefault();setShortcutsOpen(false)}}
       else if(e.code==="KeyH"){e.preventDefault();toggleControls()}
       else if(e.code==="ArrowLeft"){e.preventDefault();nudge(e.shiftKey?-1:-0.1)}
       else if(e.code==="ArrowRight"){e.preventDefault();nudge(e.shiftKey?1:0.1)}
@@ -127,7 +133,8 @@ function App(){
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
       {loaded&&<div className="hud">
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
-        <button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button>
+        <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
+        {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p><p><kbd>M</kbd><span>Show / Hide mini-map</span></p><p><kbd>B</kbd><span>Show / Hide boost</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Space</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Shift</kbd><span>Move faster</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
         {controlsVisible&&<div className="controls">
           <div className="timeline">
             <button className="step" onClick={()=>nudge(-0.1)}>−0.1</button><div className="timelineTrack"><input aria-label="Replay timeline" type="range" min="0" max={duration||0} step="0.01" value={Math.min(progress,duration||0)} onPointerDown={beginScrub} onChange={scrub} onPointerUp={endScrub}/>{events.map(e=><button key={e.id} className={"eventMarker "+e.kind} style={{left:(duration?e.time/duration*100:0)+"%"}} title={e.kind+(e.player?" · "+e.player:"")+" · "+format(e.time)} onClick={()=>seek(e.time,false)}>{e.kind==="goal"?"⚽":e.kind==="shot"?"◉":e.kind==="save"?"🛡":"💥"}</button>)}</div><button className="step" onClick={()=>nudge(0.1)}>+0.1</button>
@@ -153,7 +160,7 @@ function App(){
             </label>
             <div className="drawControls"><button onClick={()=>setDrawMode(v=>!v)}>{drawMode?"Exit Draw":"Draw"}</button>{drawMode&&<><select value={drawColor} onChange={e=>{setDrawColor(e.target.value);setDrawTool("pen")}}><option value="#ef4444">Red</option><option value="#3b82f6">Blue</option><option value="#ec4899">Pink</option><option value="#22c55e">Green</option></select><select value={drawTool} onChange={e=>setDrawTool(e.target.value)}><option value="pen">Pen</option><option value="erase">Erase</option></select><label className="thickness">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/></label><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button></>}</div>\n            <button onClick={fullscreen}>Fullscreen</button>
           </div>
-          <div className="hints">Space Play/Pause · H Hide/Show Controls · ←/→ 0.1s · Shift+←/→ 1s · Fly Cam: WASD + mouse · Space/Ctrl up/down · Shift faster</div>
+          <div className="hints">Press <b>?</b> for shortcuts · <b>Space</b> Play/Pause · <b>V</b> Draw · <b>F</b> Fly Cam</div>
         </div>}
       </div>}
     </section>
