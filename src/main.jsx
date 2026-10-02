@@ -6,15 +6,7 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false);
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
-  const [ballCam,setBallCam]=useState(false),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1);
-
-  useEffect(()=>{
-    const originalRAF=window.requestAnimationFrame.bind(window),originalCAF=window.cancelAnimationFrame.bind(window);
-    let last=0,id=0;const timers=new Map();
-    window.requestAnimationFrame=cb=>{const n=++id;const delay=Math.max(0,16.67-(performance.now()-last));const t=window.setTimeout(()=>{timers.delete(n);const r=originalRAF(time=>{last=time;cb(time)});timers.set(n,r)},delay);timers.set(n,t);return n};
-    window.cancelAnimationFrame=n=>{const t=timers.get(n);if(t!==undefined){clearTimeout(t);originalCAF(t);timers.delete(n)}};
-    return()=>{window.requestAnimationFrame=originalRAF;window.cancelAnimationFrame=originalCAF;for(const t of timers.values())clearTimeout(t);timers.clear()};
-  },[]);
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{}},[]);
 
@@ -40,8 +32,30 @@ function App(){
     const next=Number(value);setSpeed(next);player.current?.setState({speed:next});
   }
   function fullscreen(){const el=viewport.current;if(!el)return;document.fullscreenElement?document.exitFullscreen():el.requestFullscreen?.()}
-  function choose(id){setSelected(id);setBallCam(true);player.current?.setState({attachedPlayerId:id,cameraViewMode:"follow",ballCamEnabled:true})}
-  function toggleBall(){const next=!ballCam;setBallCam(next);player.current?.setState({ballCamEnabled:next})}
+  function choose(id){
+    setSelected(id);
+    if(!id){
+      setReplayBallCam(true);
+      player.current?.setState({attachedPlayerId:null,cameraViewMode:"free"});
+      return;
+    }
+    setReplayBallCam(true);
+    player.current?.setState({attachedPlayerId:id,cameraViewMode:"follow",useReplayBallCam:true});
+  }
+  function setBallCamMode(mode){
+    const p=player.current;
+    if(!p)return;
+    if(mode==="recorded"){
+      setReplayBallCam(true);
+      p.setState({useReplayBallCam:true});
+      return;
+    }
+    const enabled=mode==="on";
+    setReplayBallCam(false);
+    setBallCam(enabled);
+    p.setState({ballCamEnabled:enabled});
+  }
+  function toggleControls(){setControlsVisible(v=>!v)}
 
   useEffect(()=>{
     function key(e){
@@ -49,6 +63,7 @@ function App(){
       const tag=e.target?.tagName;
       if(tag==="INPUT"||tag==="SELECT"||tag==="BUTTON")return;
       if(e.code==="Space"){e.preventDefault();togglePlay()}
+      else if(e.code==="KeyH"){e.preventDefault();toggleControls()}
       else if(e.code==="ArrowLeft"){e.preventDefault();nudge(e.shiftKey?-1:-0.1)}
       else if(e.code==="ArrowRight"){e.preventDefault();nudge(e.shiftKey?1:0.1)}
       else if(e.code==="Home"){e.preventDefault();seek(0,false)}
@@ -61,16 +76,29 @@ function App(){
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
     try{
-      setStatus("Loading replay…");setLoaded(false);setPlaying(false);setProgress(0);setDuration(0);
+      setStatus("Loading replay…");setLoaded(false);setPlaying(false);setProgress(0);setDuration(0);setReplayBallCam(true);
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
-      const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
-      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:false,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),createScoredTextPlugin()]});
+      const {createPlayer,createNameTagPlugin}=await import("@rlrml/player");
+      const nameplateScalePlugin=()=>({
+        id:"nameplate-scale",
+        beforeRender(ctx){
+          ctx.scene.traverse(obj=>{
+            if(!obj.isSprite||obj.renderOrder!==999)return;
+            const image=obj.material?.map?.image;
+            if(image?.width===256&&image?.height===80){
+              const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());
+              obj.scale.set(base.x*nameplateScale,base.y*nameplateScale,base.z);
+            }
+          });
+        }
+      });
+      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:false,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin()]});
       player.current=p;
       const renderer=p.renderer;
       renderer?.setPixelRatio?.(1);
       if(renderer?.shadowMap)renderer.shadowMap.enabled=false;
-      p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setSpeed(s.speed||1)});
+      p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setRecordedBallCam(!!s.ballCamEnabled);setReplayBallCam(s.useReplayBallCam!==false);setSpeed(s.speed||1)});
       const roster=p.replay?.players||[];
       setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));
       setSelected(roster[0]?.id||"");
@@ -86,7 +114,8 @@ function App(){
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
       {loaded&&<div className="hud">
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
-        <div className="controls">
+        <button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button>
+        {controlsVisible&&<div className="controls">
           <div className="timeline">
             <button className="step" onClick={()=>nudge(-0.1)} title="Back 0.1 seconds">−0.1</button>
             <input aria-label="Replay timeline" type="range" min="0" max={duration||0} step="0.01" value={Math.min(progress,duration||0)} onPointerDown={beginScrub} onChange={scrub} onPointerUp={endScrub}/>
@@ -98,12 +127,20 @@ function App(){
             <select value={speed} onChange={e=>changeSpeed(e.target.value)} aria-label="Playback speed">
               {[0.25,0.5,1,1.5,2,4].map(x=><option key={x} value={x}>{x}×</option>)}
             </select>
-            <button onClick={toggleBall}>{ballCam?"Ball Cam":"Free Cam"}</button>
-            <select value={selected} onChange={e=>choose(e.target.value)}><option value="">Player POV</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+            <select value={replayBallCam?"recorded":(ballCam?"on":"off")} onChange={e=>setBallCamMode(e.target.value)} disabled={!selected} aria-label="Ball cam mode">
+              <option value="recorded">Ball Cam: Recorded {recordedBallCam?"ON":"OFF"}</option>
+              <option value="on">Ball Cam: ON (manual)</option>
+              <option value="off">Ball Cam: OFF (manual)</option>
+            </select>
+            <select value={selected} onChange={e=>choose(e.target.value)}><option value="">Free Camera</option>{players.map(p=><option key={p.id} value={p.id}>{p.name} POV</option>)}</select>
+            <label className="nameplateControl">Names
+              <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>setNameplateScale(Number(e.target.value))} aria-label="Nameplate size"/>
+              <span>{nameplateScale.toFixed(2)}×</span>
+            </label>
             <button onClick={fullscreen}>Fullscreen</button>
           </div>
-          <div className="hints">Space Play/Pause · ←/→ 0.1s · Shift+←/→ 1s · Home/End jump</div>
-        </div>
+          <div className="hints">Space Play/Pause · H Hide/Show Controls · ←/→ 0.1s · Shift+←/→ 1s · Home/End jump</div>
+        </div>}
       </div>}
     </section>
     <footer>Runs entirely in your browser. Replay data is not uploaded.</footer>
