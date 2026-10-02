@@ -94,7 +94,7 @@ function App(){
   });
 
   useEffect(()=>{resizeDrawing();const ro=new ResizeObserver(resizeDrawing);if(viewport.current)ro.observe(viewport.current);window.addEventListener("resize",resizeDrawing);return()=>{ro.disconnect();window.removeEventListener("resize",resizeDrawing)}},[loaded]);
-  useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none");root.querySelectorAll(".sap-bc-floating-boost").forEach(el=>el.style.display=boostVisible?"inline-flex":"none")},[miniMapVisible,boostVisible,loaded]);
+  useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none");root.querySelectorAll(".sap-bc-boost-bar").forEach(el=>el.style.display=boostVisible?"inline-flex":"none")},[miniMapVisible,boostVisible,loaded]);
 
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
