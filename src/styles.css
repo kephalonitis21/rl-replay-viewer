@@ -34,3 +34,24 @@
 .drawActions{display:flex;justify-content:center;gap:7px;margin-top:10px}
 .drawActions button{min-width:64px}
 @media(max-width:600px){.drawSettings{bottom:12px;width:calc(100% - 14px)}.drawColors{gap:11px}.drawColor{width:32px;height:32px}}
+
+/* Compact horizontal draw settings */
+.drawSettings{width:auto;min-width:0;max-width:calc(100% - 24px);padding:8px 10px;display:flex;align-items:center;gap:10px}
+.drawSettingsHeader{margin:0;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.drawSettingsHeader strong{font-size:13px}
+.drawColors{display:flex;justify-content:center;gap:7px;margin:0}
+.drawColor{width:26px;height:26px;border-width:2px}
+.drawSize{display:flex;align-items:center;gap:7px;border:0;background:transparent;border-radius:0;padding:0;font-size:12px;white-space:nowrap}
+.drawSize input{width:90px}
+.drawSize span{min-width:34px}
+.drawActions{display:flex;align-items:center;gap:5px;margin:0}
+.drawActions button{min-width:0;padding:5px 8px}
+@media(max-width:600px){
+  .drawSettings{gap:7px;padding:7px;max-width:calc(100% - 14px)}
+  .drawSettingsHeader strong{display:none}
+  .drawColors{gap:5px}
+  .drawColor{width:24px;height:24px}
+  .drawSize input{width:65px}
+  .drawActions{gap:4px}
+  .drawActions button{padding:5px 6px}
+}
