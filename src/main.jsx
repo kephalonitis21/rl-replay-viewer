@@ -7,7 +7,7 @@ const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null);
-  const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
+  const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
   const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
@@ -129,7 +129,8 @@ function App(){
   });
 
   useEffect(()=>{const down=e=>{if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();flyKeys.current.add(e.code)}};const up=e=>flyKeys.current.delete(e.code);const clear=()=>{flyKeys.current.clear();flyLook.current.active=false};window.addEventListener("keydown",down,true);window.addEventListener("keyup",up,true);window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{window.removeEventListener("keydown",down,true);window.removeEventListener("keyup",up,true);window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear)}});
-  useEffect(()=>{drawModeRef.current=drawMode;const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);\n  useEffect(()=>{const el=controlsRef.current;if(!el||!controlsVisible||drawMode){if(drawMode||!controlsVisible)setControlsHeight(0);return}const update=()=>setControlsHeight(el.offsetHeight);update();const ro=new ResizeObserver(update);ro.observe(el);return()=>ro.disconnect()},[controlsVisible,drawMode,loaded]);
+  useEffect(()=>{drawModeRef.current=drawMode;const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
+  useEffect(()=>{const el=controlsRef.current;if(!el||!controlsVisible||drawMode){if(drawMode||!controlsVisible)setControlsHeight(0);return}const update=()=>setControlsHeight(el.offsetHeight);update();const ro=new ResizeObserver(update);ro.observe(el);return()=>ro.disconnect()},[controlsVisible,drawMode,loaded]);
   useEffect(()=>{
     const canvas=player.current?.renderer?.domElement;
     if(!canvas||!loaded)return;
@@ -162,6 +163,7 @@ function App(){
       canvas.classList.remove("flyCamCanvas");
       canvas.style.touchAction="";
       canvas.style.cursor="";
+      document.body.style.cursor="";
       flyLook.current.active=false;
     };
   },[loaded,cameraMode]);
