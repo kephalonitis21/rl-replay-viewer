@@ -20,3 +20,17 @@
 .sap-bc-boost-text{width:100%;height:100%;padding:0!important;display:grid!important;place-items:center!important;color:#fff!important;font-size:13px!important;font-weight:900!important;text-shadow:0 1px 3px #000!important}
 .sap-bc-followed-hud{z-index:12!important}
 .drawCanvas.active{touch-action:none}
+
+.drawSettings{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:55;pointer-events:auto;width:min(420px,calc(100% - 24px));padding:12px;background:#080b10ed;border:1px solid #334155;border-radius:10px;backdrop-filter:blur(8px);box-shadow:0 16px 40px #0009}
+.drawSettingsHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.drawSettingsHeader strong{font-size:14px}
+.drawColors{display:flex;justify-content:center;gap:14px;margin:4px 0 14px}
+.drawColor{width:34px;height:34px;padding:0;border-radius:50%;background:var(--draw-color);border:3px solid transparent;box-shadow:0 2px 7px #0008;cursor:pointer}
+.drawColor:hover{transform:scale(1.08)}
+.drawColor.selected{border-color:#fff;box-shadow:0 0 0 2px #64748b,0 2px 8px #0009}
+.drawSize{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;border:1px solid #2a3442;background:#111722;border-radius:8px;padding:7px 9px;font-size:12px}
+.drawSize input{width:100%;accent-color:#e8edf5}
+.drawSize span{min-width:38px;text-align:right;font-variant-numeric:tabular-nums;color:#cbd2dc}
+.drawActions{display:flex;justify-content:center;gap:7px;margin-top:10px}
+.drawActions button{min-width:64px}
+@media(max-width:600px){.drawSettings{bottom:12px;width:calc(100% - 14px)}.drawColors{gap:11px}.drawColor{width:32px;height:32px}}
