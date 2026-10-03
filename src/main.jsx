@@ -8,7 +8,7 @@ const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null);
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
-  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
@@ -46,6 +46,7 @@ function App(){
     setReplayBallCam(true);
     player.current?.setState({attachedPlayerId:id,cameraViewMode:"follow",useReplayBallCam:true});
   }
+  function choosePovSlot(slot){const entry=povSlots[slot-1];if(!entry)return;choose(entry.id)}
   function setBallCamMode(mode){
     const p=player.current;
     if(!p)return;
@@ -87,6 +88,7 @@ function App(){
   useEffect(()=>{
     function key(e){
       if(!loaded)return;
+      if(/^Digit[1-6]$/.test(e.code)){const slot=Number(e.code.slice(5));if(povSlots[slot-1]){e.preventDefault();e.stopPropagation();choosePovSlot(slot)}return;}
       if(e.code==="Space"){e.preventDefault();e.stopPropagation();togglePlay();return;}
       const tag=e.target?.tagName;
       const editable=e.target?.isContentEditable||tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT";
@@ -131,7 +133,12 @@ function App(){
       if(renderer?.shadowMap)renderer.shadowMap.enabled=false;
       p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setRecordedBallCam(!!s.ballCamEnabled);setReplayBallCam(s.useReplayBallCam!==false);setSpeed(s.speed||1)});
       const roster=p.replay?.players||[];
+      const mapped=roster.map((x,index)=>({id:x.id,name:x.name||"Player",team:Number(x.team),index}));
+      const blue=mapped.filter(x=>x.team===0).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})||a.index-b.index);
+      const orange=mapped.filter(x=>x.team===1).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})||a.index-b.index);
+      const slots=[...blue.slice(0,3),...orange.slice(0,3)];
       setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));
+      setPovSlots(slots);
       selectedRef.current=roster[0]?.id||"";setSelected(roster[0]?.id||"");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
       setLoaded(true);setStatus(file.name);
@@ -148,6 +155,7 @@ function App(){
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
         <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
         {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p><p><kbd>M</kbd><span>Show / Hide mini-map</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Shift</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
+        <div className="povBar" aria-label="Player POV shortcuts">{povSlots.map((p,i)=><button key={p.id} className={"povSlot "+(p.team===0?"blue":"orange")+" "+(selected===p.id?"active":"")} onClick={()=>choosePovSlot(i+1)} title={p.name+" POV"}><kbd>{i+1}</kbd><span>{p.name}</span></button>)}</div>
         {controlsVisible&&!drawMode&&<div className="controls">
           <div className="timeline">
             <button className="step" onClick={()=>nudge(-0.1)}>−0.1</button><div className="timelineTrack"><input aria-label="Replay timeline" type="range" min="0" max={duration||0} step="0.01" value={Math.min(progress,duration||0)} onPointerDown={beginScrub} onChange={scrub} onPointerUp={endScrub}/>{events.map(e=><button key={e.id} className={"eventMarker "+e.kind} style={{left:(duration?e.time/duration*100:0)+"%"}} title={e.kind+(e.player?" · "+e.player:"")+" · "+format(e.time)} onClick={()=>seek(e.time,false)}>{e.kind==="goal"?"⚽":e.kind==="shot"?"◉":e.kind==="save"?"🛡":"💥"}</button>)}</div><button className="step" onClick={()=>nudge(0.1)}>+0.1</button>
