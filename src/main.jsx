@@ -6,21 +6,31 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{},opacity:0.32}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),loadedRef=useRef(false),povSlotsRef=useRef([]),playingRef=useRef(false),durationRef=useRef(0),progressRef=useRef(0),shortcutsOpenRef=useRef(false),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{},opacity:0.32}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
   const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]),[coverageOpen,setCoverageOpen]=useState(false),[coverageEnabled,setCoverageEnabled]=useState(false),[coverageTeams,setCoverageTeams]=useState({blue:true,orange:true}),[coveragePlayers,setCoveragePlayers]=useState({}),[coverageOpacity,setCoverageOpacity]=useState(0.32);
+
+  useEffect(()=>{
+    loadedRef.current=loaded;
+    povSlotsRef.current=povSlots;
+    playingRef.current=playing;
+    durationRef.current=duration;
+    progressRef.current=progress;
+    shortcutsOpenRef.current=shortcutsOpen;
+  },[loaded,povSlots,playing,duration,progress,shortcutsOpen]);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
   function setPlayback(next){
     const p=player.current;if(!p)return;
+    playingRef.current=next;
     p.setState({playing:next});
     setPlaying(next);
   }
-  function togglePlay(){setPlayback(!playing)}
-  function seek(time, resume=playing){
-    const p=player.current;if(!p||!duration)return;
-    const t=Math.max(0,Math.min(duration,time));
+  function togglePlay(){setPlayback(!playingRef.current)}
+  function seek(time, resume=playingRef.current){
+    const p=player.current;if(!p||!durationRef.current)return;
+    const t=Math.max(0,Math.min(durationRef.current,time));
     p.setState({currentTime:t,playing:resume});
     setProgress(t);
     setPlaying(resume);
@@ -28,7 +38,7 @@ function App(){
   function scrub(e){seek(Number(e.target.value),wasPlaying.current)}
   function beginScrub(){wasPlaying.current=playing; if(playing)setPlayback(false)}
   function endScrub(e){seek(Number(e.target.value),wasPlaying.current)}
-  function nudge(delta){seek(progress+delta,false)}
+  function nudge(delta){seek(progressRef.current+delta,false)}
   function changeSpeed(value){
     const next=Number(value);setSpeed(next);player.current?.setState({speed:next});
   }
@@ -45,7 +55,7 @@ function App(){
     setReplayBallCam(true);
     player.current?.setState({attachedPlayerId:id,cameraViewMode:"follow",useReplayBallCam:true});
   }
-  function choosePovSlot(slot){const entry=povSlots[slot-1];if(!entry)return;if(flyModeRef.current)toggleFly();choose(entry.id)}
+  function choosePovSlot(slot){const entry=povSlotsRef.current[slot-1];if(!entry)return;if(flyModeRef.current)toggleFly();choose(entry.id)}
   function setBallCamMode(mode){
     const p=player.current;
     if(!p)return;
@@ -79,7 +89,7 @@ function App(){
   function endDraw(e){drawing.current=false;try{e?.currentTarget?.releasePointerCapture?.(e.pointerId)}catch{}}
   function clearDraw(){drawing.current=false;drawHistory.current=[];drawRedo.current=[];redraw()}
   function exitDraw(){clearDraw();setDrawMode(false);const p=player.current;if(p?.controls)p.controls.enabled=!flyModeRef.current}
-  function toggleDraw(){if(drawMode){exitDraw();return}setDrawMode(true);const p=player.current;if(p?.controls)p.controls.enabled=false}
+  function toggleDraw(){if(drawModeRef.current){exitDraw();return}setDrawMode(true);const p=player.current;if(p?.controls)p.controls.enabled=false}
   function handleDrawPointerDown(e){if(!drawMode)return;e.currentTarget.setPointerCapture?.(e.pointerId);startDraw(e)}
   function handleDrawPointerMove(e){if(drawMode)moveDraw(e)}
   function undoDraw(){if(drawHistory.current.length){drawRedo.current.push(drawHistory.current.pop());redraw()}}
@@ -90,7 +100,7 @@ function App(){
   function loadCustomCamera(id){const item=customCameras.find(x=>x.id===id),p=player.current;if(!item||!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.camera.position.fromArray(item.position);p.camera.quaternion.fromArray(item.quaternion);p.camera.fov=item.fov||48;p.camera.updateProjectionMatrix();p.controls.enabled=true;setSelected("");selectedRef.current="";if(povBoostHudRef.current)povBoostHudRef.current.style.display="none";setCameraMode("free")}
   function deleteCustomCamera(id){const next=customCameras.filter(x=>x.id!==id);setCustomCameras(next);localStorage.setItem(CAMERA_STORAGE,JSON.stringify(next));if(cameraPreset==="custom:"+id)setCameraPreset("")}
   function startFlyLoop(){if(flyFrame.current)return;const tick=(now)=>{const p=player.current;if(!p||!flyModeRef.current){flyFrame.current=null;return}const dt=Math.min(.05,(now-flyState.current.last)/1000);flyState.current.last=now;const c=p.camera,spd=1400,forward=new THREE.Vector3(0,0,-1).applyQuaternion(c.quaternion),right=new THREE.Vector3(1,0,0).applyQuaternion(c.quaternion);if(flyKeys.current.has("KeyW"))c.position.addScaledVector(forward,spd*dt);if(flyKeys.current.has("KeyS"))c.position.addScaledVector(forward,-spd*dt);if(flyKeys.current.has("KeyD"))c.position.addScaledVector(right,spd*dt);if(flyKeys.current.has("KeyA"))c.position.addScaledVector(right,-spd*dt);if(flyKeys.current.has("ShiftLeft")||flyKeys.current.has("ShiftRight"))c.position.y+=1400*dt;if(flyKeys.current.has("ControlLeft")||flyKeys.current.has("ControlRight"))c.position.y-=1400*dt;p.controls.target.copy(c.position).addScaledVector(forward,1000);flyFrame.current=requestAnimationFrame(tick)};flyFrame.current=requestAnimationFrame(tick)}
-  function toggleFly(){const p=player.current;if(!p)return;const next=!flyModeRef.current;flyModeRef.current=next;setCameraMode(next?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!next&&!drawMode;flyLook.current={active:false,x:0,y:0};if(next){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};flyKeys.current.clear();startFlyLoop()}else{flyKeys.current.clear();if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}}
+  function toggleFly(){const p=player.current;if(!p)return;const next=!flyModeRef.current;flyModeRef.current=next;setCameraMode(next?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!next&&!drawModeRef.current;flyLook.current={active:false,x:0,y:0};if(next){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};flyKeys.current.clear();startFlyLoop()}else{flyKeys.current.clear();if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}}
   function flyPointerDown(e){
     if(!flyModeRef.current||drawModeRef.current||e.button!==0)return;
     flyLook.current={active:true,x:e.clientX,y:e.clientY};
@@ -115,7 +125,7 @@ function App(){
   }
   useEffect(()=>{
     function key(e){
-      if(!loaded)return;
+      if(!loadedRef.current)return;
       if(/^Digit[1-6]$/.test(e.code)){const slot=Number(e.code.slice(5));if(povSlots[slot-1]){e.preventDefault();e.stopPropagation();choosePovSlot(slot)}return;}
       if(e.code==="Space"){e.preventDefault();e.stopPropagation();togglePlay();return;}
       const tag=e.target?.tagName;
@@ -125,7 +135,7 @@ function App(){
       else if(e.code==="KeyF"){e.preventDefault();toggleFly()}
       else if(e.key==="?"){e.preventDefault();setShortcutsOpen(v=>!v)}
       else if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();return}
-      else if(e.code==="Escape"){if(flyModeRef.current){e.preventDefault();toggleFly()}else if(drawMode){e.preventDefault();exitDraw()}else if(shortcutsOpen){e.preventDefault();setShortcutsOpen(false)}}
+      else if(e.code==="Escape"){if(flyModeRef.current){e.preventDefault();toggleFly()}else if(drawModeRef.current){e.preventDefault();exitDraw()}else if(shortcutsOpenRef.current){e.preventDefault();setShortcutsOpen(false)}}
       else if(e.code==="KeyH"){e.preventDefault();toggleControls()}
       else if(e.code==="ArrowLeft"){e.preventDefault();nudge(e.shiftKey?-1:-0.1)}
       else if(e.code==="ArrowRight"){e.preventDefault();nudge(e.shiftKey?1:0.1)}
@@ -134,7 +144,7 @@ function App(){
     }
     window.addEventListener("keydown",key);
     return()=>window.removeEventListener("keydown",key);
-  });
+  },[]);
 
   useEffect(()=>{const down=e=>{if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();flyKeys.current.add(e.code)}};const up=e=>flyKeys.current.delete(e.code);const clear=()=>{flyKeys.current.clear();flyLook.current.active=false};window.addEventListener("keydown",down,true);window.addEventListener("keyup",up,true);window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{window.removeEventListener("keydown",down,true);window.removeEventListener("keyup",up,true);window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear)}},[]);
   useEffect(()=>{drawModeRef.current=drawMode;const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
@@ -181,7 +191,7 @@ function App(){
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
     try{
-      setStatus("Loading replay…");setLoaded(false);setPlaying(false);setProgress(0);setDuration(0);setReplayBallCam(true);
+      setStatus("Loading replay…");setLoaded(false);loadedRef.current=false;setPlaying(false);playingRef.current=false;setProgress(0);progressRef.current=0;setDuration(0);durationRef.current=0;setReplayBallCam(true);
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
@@ -247,7 +257,7 @@ function App(){
       resetCoveragePlayers(mapped);
       selectedRef.current="";setSelected("");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
-      setLoaded(true);setStatus(file.name);
+      setLoaded(true);loadedRef.current=true;setStatus(file.name);
     }catch(err){console.error(err);setStatus("Could not load this replay.");setLoaded(false);}
   }
   function drop(e){e.preventDefault();loadReplay(e.dataTransfer.files?.[0])}
