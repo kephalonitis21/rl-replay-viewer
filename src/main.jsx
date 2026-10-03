@@ -187,58 +187,29 @@ function App(){
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
       const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
       const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
-      const coveragePlugin=()=>({id:"coverage-cones",setup(ctx){
-        const makeCone=()=>{
+      const coveragePlugin=()=>{
+        const meshes=new Map();
+        const makeCone=(ctx)=>{
           const width=THREE.MathUtils.degToRad(110),range=1900,segments=24;
-          const shape=[];
-          for(let i=0;i<=segments;i++){const a=-width/2+(width*i/segments);shape.push(new THREE.Vector3(Math.sin(a)*range,0,Math.cos(a)*range))}
-          const positions=new Float32Array((shape.length+1)*3);positions.set([0,0,0],0);shape.forEach((v,i)=>positions.set([v.x,v.y,v.z],(i+1)*3));
-          const indices=[];for(let i=0;i<segments;i++)indices.push(0,i+1,i+2);
-          const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+          const positions=new Float32Array((segments+2)*3);const indices=[];
+          positions.set([0,0,0],0);
+          for(let i=0;i<=segments;i++){const a=-width/2+(width*i/segments);const o=(i+1)*3;positions[o]=Math.sin(a)*range;positions[o+1]=0;positions[o+2]=Math.cos(a)*range;if(i<segments)indices.push(0,i+1,i+2)}
+          const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));geometry.setIndex(indices);
           const material=new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
-          const mesh=new THREE.Mesh(geometry,material);mesh.rotation.order="YXZ";mesh.renderOrder=4;mesh.visible=false;mesh.userData.__coverage=true;ctx.scene.add(mesh);return mesh;
+          const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=4;mesh.visible=false;ctx.scene.add(mesh);return mesh;
         };
-        ctx.__coverageMeshes=new Map();
-        ctx.__coverageMakeCone=makeCone;
-      },beforeRender(ctx){
-        const settings=coverageRef.current;
-        const seen=new Set();
-        const teamFor=(car)=>{
-          const roster=coverageRosterRef.current.find(x=>x.id===String(car?.id));
-          return Number(car?.team??roster?.team)===0?"blue":"orange";
-        };
-        const getVector=(v)=>{
-          if(!v)return null;
-          if(v.isVector3)return v;
-          if(Array.isArray(v)&&v.length>=3)return new THREE.Vector3(Number(v[0])||0,Number(v[1])||0,Number(v[2])||0);
-          if(Number.isFinite(Number(v.x))&&Number.isFinite(Number(v.y))&&Number.isFinite(Number(v.z)))return new THREE.Vector3(Number(v.x),Number(v.y),Number(v.z));
-          return null;
-        };
-        const getPosition=(car)=>getVector(car?.position||car?.physics?.position||car?.location||car?.physics?.location);
-        const getQuaternion=(car)=>car?.quaternion?.isQuaternion?car.quaternion:null;
-        const getYaw=(car)=>{
-          const q=getQuaternion(car);
-          if(q){const f=new THREE.Vector3(0,0,1).applyQuaternion(q);f.y=0;if(f.lengthSq()>1e-6)return Math.atan2(f.x,f.z)}
-          const r=car?.rotation||car?.physics?.rotation;
-          if(r?.isEuler)return r.y;
-          if(r&&Number.isFinite(Number(r.yaw)))return Number(r.yaw);
-          if(r&&Number.isFinite(Number(r.Yaw)))return Number(r.Yaw);
-          if(Array.isArray(r)&&r.length>=2)return Number(r[1]);
-          return null;
-        };
-        (ctx.cars||[]).forEach(car=>{
-          const id=String(car.id);seen.add(id);
-          let mesh=ctx.__coverageMeshes.get(id);if(!mesh){mesh=ctx.__coverageMakeCone();ctx.__coverageMeshes.set(id,mesh)}
-          const team=teamFor(car),pos=getPosition(car),yaw=getYaw(car);
-          const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!pos&&yaw!==null;
-          mesh.visible=visible;
-          if(!visible)return;
-          mesh.position.set(pos.x,1.5,pos.z);mesh.rotation.set(0,yaw,0);mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);
-        });
-        for(const [id,mesh] of ctx.__coverageMeshes){if(!seen.has(id))mesh.visible=false}
-      },teardown(ctx){for(const mesh of ctx.__coverageMeshes?.values()||[]){mesh.geometry.dispose();mesh.material.dispose();ctx.scene.remove(mesh)}ctx.__coverageMeshes?.clear()}
-      });
-      const povBoostPlugin=()=>({id:"pov-boost-hud",beforeRender(ctx){const hud=povBoostHudRef.current;if(!hud)return;const id=selectedRef.current;const car=id?ctx.cars.find(c=>c.id===id):null;if(!car){hud.style.display="none";return}const boost=Math.max(0,Math.min(100,Math.round(Number(car.boost)||0)));hud.style.display="flex";hud.style.setProperty("--boost",boost+"%");const value=hud.querySelector(".povBoostValue");const fill=hud.querySelector(".povBoostFill");if(value)value.textContent=String(boost);if(fill)fill.style.width=boost+"%"}});
+        return {id:"coverage-cones",setup(){},beforeRender(ctx){
+          const settings=coverageRef.current;const seen=new Set();
+          for(const car of ctx.cars||[]){
+            const id=String(car.id);seen.add(id);let mesh=meshes.get(id);if(!mesh){mesh=makeCone(ctx);meshes.set(id,mesh)}
+            const team=Number(car.team)===0?"blue":"orange";const pos=car.position;const q=car.rotation;
+            const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!pos&&!!q&&car.visible!==false;
+            mesh.visible=visible;if(!visible)continue;
+            mesh.position.set(Number(pos.x)||0,1.5,Number(pos.z)||0);mesh.quaternion.set(Number(q.x)||0,Number(q.y)||0,Number(q.z)||0,Number(q.w)||1);mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);
+          }
+          for(const [id,mesh] of meshes){if(!seen.has(id))mesh.visible=false}
+        },teardown(ctx){for(const mesh of meshes.values()){mesh.geometry.dispose();mesh.material.dispose();ctx.scene.remove(mesh)}meshes.clear()}};
+      };
       const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),hideBallIndicatorPlugin(),povBoostPlugin(),coveragePlugin(),createScoredTextPlugin()]});
       player.current=p;
       const renderer=p.renderer;
