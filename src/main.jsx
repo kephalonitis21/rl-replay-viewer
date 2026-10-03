@@ -39,6 +39,7 @@ function App(){
     setSelected(id);
     if(!id){
       setReplayBallCam(true);
+      if(povBoostHudRef.current)povBoostHudRef.current.style.display="none";
       player.current?.setState({attachedPlayerId:null,cameraViewMode:"free"});
       return;
     }
@@ -73,10 +74,10 @@ function App(){
   function handleDrawPointerMove(e){if(drawMode)moveDraw(e)}
   function undoDraw(){if(drawHistory.current.length){drawRedo.current.push(drawHistory.current.pop());redraw()}}
   function redoDraw(){if(drawRedo.current.length){drawHistory.current.push(drawRedo.current.pop());redraw()}}
-  function cameraPose(position,target,up=[0,1,0],fov=48){const p=player.current;if(!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});const c=p.camera;c.position.set(...position);c.up.set(...up);c.fov=fov;c.updateProjectionMatrix();c.lookAt(...target);p.controls.target.set(...target);p.controls.update();setSelected("");setCameraMode("free");flyModeRef.current=false}
+  function cameraPose(position,target,up=[0,1,0],fov=48){const p=player.current;if(!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});const c=p.camera;c.position.set(...position);c.up.set(...up);c.fov=fov;c.updateProjectionMatrix();c.lookAt(...target);p.controls.target.set(...target);p.controls.update();setSelected("");selectedRef.current="";if(povBoostHudRef.current)povBoostHudRef.current.style.display="none";setCameraMode("free");flyModeRef.current=false}
   function builtInCamera(v){setCameraPreset(v);if(v==="blue-goal")cameraPose([0,1800,-6900],[0,650,0]);else if(v==="orange-goal")cameraPose([0,1800,6900],[0,650,0]);else if(v==="top")cameraPose([0,9000,0],[0,0,0],[-1,0,0],50);else if(v==="side")cameraPose([7200,2200,0],[0,500,0],[0,1,0],58)}
   function saveCamera(){const p=player.current;if(!p)return;const name=window.prompt("Name this camera preset:");if(!name?.trim())return;const c=p.camera,item={id:crypto.randomUUID(),name:name.trim(),position:c.position.toArray(),quaternion:c.quaternion.toArray(),fov:c.fov};const next=[...customCameras,item];setCustomCameras(next);localStorage.setItem(CAMERA_STORAGE,JSON.stringify(next));setCameraPreset("custom:"+item.id)}
-  function loadCustomCamera(id){const item=customCameras.find(x=>x.id===id),p=player.current;if(!item||!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.camera.position.fromArray(item.position);p.camera.quaternion.fromArray(item.quaternion);p.camera.fov=item.fov||48;p.camera.updateProjectionMatrix();p.controls.enabled=true;setSelected("");setCameraMode("free")}
+  function loadCustomCamera(id){const item=customCameras.find(x=>x.id===id),p=player.current;if(!item||!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.camera.position.fromArray(item.position);p.camera.quaternion.fromArray(item.quaternion);p.camera.fov=item.fov||48;p.camera.updateProjectionMatrix();p.controls.enabled=true;setSelected("");selectedRef.current="";if(povBoostHudRef.current)povBoostHudRef.current.style.display="none";setCameraMode("free")}
   function deleteCustomCamera(id){const next=customCameras.filter(x=>x.id!==id);setCustomCameras(next);localStorage.setItem(CAMERA_STORAGE,JSON.stringify(next));if(cameraPreset==="custom:"+id)setCameraPreset("")}
   function startFlyLoop(){if(flyFrame.current)return;const tick=(now)=>{const p=player.current;if(!p||!flyModeRef.current){flyFrame.current=null;return}const dt=Math.min(.05,(now-flyState.current.last)/1000);flyState.current.last=now;const c=p.camera,spd=1400*(flyKeys.current.has("ShiftLeft")?2.5:1),forward=new THREE.Vector3(0,0,-1).applyQuaternion(c.quaternion),right=new THREE.Vector3(1,0,0).applyQuaternion(c.quaternion);if(flyKeys.current.has("KeyW"))c.position.addScaledVector(forward,spd*dt);if(flyKeys.current.has("KeyS"))c.position.addScaledVector(forward,-spd*dt);if(flyKeys.current.has("KeyD"))c.position.addScaledVector(right,spd*dt);if(flyKeys.current.has("KeyA"))c.position.addScaledVector(right,-spd*dt);if(flyKeys.current.has("Space"))c.position.y+=spd*dt;if(flyKeys.current.has("ControlLeft"))c.position.y-=spd*dt;p.controls.target.copy(c.position).addScaledVector(forward,1000);flyFrame.current=requestAnimationFrame(tick)};flyFrame.current=requestAnimationFrame(tick)}
   function toggleFly(){const p=player.current;if(!p)return;const next=!flyModeRef.current;flyModeRef.current=next;setCameraMode(next?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!next&&!drawMode;if(next){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};flyKeys.current.clear();startFlyLoop();lockFly()}else{flyKeys.current.clear();if(document.pointerLockElement===viewport.current)document.exitPointerLock?.();if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}}
@@ -130,7 +131,7 @@ function App(){
       p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setRecordedBallCam(!!s.ballCamEnabled);setReplayBallCam(s.useReplayBallCam!==false);setSpeed(s.speed||1)});
       const roster=p.replay?.players||[];
       setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));
-      setSelected(roster[0]?.id||"");
+      selectedRef.current=roster[0]?.id||"";setSelected(roster[0]?.id||"");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
       setLoaded(true);setStatus(file.name);
     }catch(err){console.error(err);setStatus("Could not load this replay.");setLoaded(false);}
