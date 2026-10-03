@@ -190,8 +190,8 @@ function App(){
 
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
+    const loadId=++replayLoadRef.current;
     try{
-      const loadId=++replayLoadRef.current;
       setStatus("Loading replay…");setLoaded(false);loadedRef.current=false;setPlaying(false);playingRef.current=false;setProgress(0);progressRef.current=0;setDuration(0);durationRef.current=0;setReplayBallCam(true);
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
