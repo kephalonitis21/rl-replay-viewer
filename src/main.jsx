@@ -6,9 +6,9 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null);
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{}}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
-  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]),[coverageOpen,setCoverageOpen]=useState(false),[coverageEnabled,setCoverageEnabled]=useState(false),[coverageTeams,setCoverageTeams]=useState({blue:true,orange:true}),[coveragePlayers,setCoveragePlayers]=useState({});
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
@@ -61,6 +61,16 @@ function App(){
   }
   function toggleControls(){setControlsVisible(v=>!v)}
   function changeNameplateScale(value){nameplateScaleRef.current=Number(value);setNameplateScale(Number(value))}
+  function syncCoverageSettings(next){
+    coverageRef.current=next;
+    setCoverageEnabled(next.enabled);
+    setCoverageTeams({blue:next.blue,orange:next.orange});
+    setCoveragePlayers({...next.players});
+  }
+  function toggleCoverage(){syncCoverageSettings({...coverageRef.current,enabled:!coverageRef.current.enabled})}
+  function toggleCoverageTeam(team){syncCoverageSettings({...coverageRef.current,[team]:!coverageRef.current[team]})}
+  function toggleCoveragePlayer(id){syncCoverageSettings({...coverageRef.current,players:{...coverageRef.current.players,[id]:!coverageRef.current.players[id]}})}
+  function resetCoveragePlayers(roster){const players={};roster.forEach(x=>{players[x.id]=true});coverageRosterRef.current=roster;syncCoverageSettings({...coverageRef.current,players})}
 
   function resizeDrawing(){const c=drawCanvas.current,v=viewport.current;if(!c||!v)return;const r=v.getBoundingClientRect(),d=window.devicePixelRatio||1;c.width=Math.max(1,Math.round(r.width*d));c.height=Math.max(1,Math.round(r.height*d));c.style.width=r.width+"px";c.style.height=r.height+"px";c.getContext("2d").setTransform(d,0,0,d,0,0);redraw()}
   function redraw(){const c=drawCanvas.current,v=viewport.current;if(!c||!v)return;const ctx=c.getContext("2d"),r=v.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);for(const st of drawHistory.current){ctx.save();ctx.globalCompositeOperation=st.tool==="erase"?"destination-out":"source-over";ctx.strokeStyle=st.color;ctx.lineWidth=st.width;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();st.points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.restore()}}
@@ -177,8 +187,59 @@ function App(){
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
       const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
       const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
+      const coveragePlugin=()=>({id:"coverage-cones",setup(ctx){
+        const makeCone=()=>{
+          const width=THREE.MathUtils.degToRad(110),range=1900,segments=24;
+          const shape=[];
+          for(let i=0;i<=segments;i++){const a=-width/2+(width*i/segments);shape.push(new THREE.Vector3(Math.sin(a)*range,0,Math.cos(a)*range))}
+          const positions=new Float32Array((shape.length+1)*3);positions.set([0,0,0],0);shape.forEach((v,i)=>positions.set([v.x,v.y,v.z],(i+1)*3));
+          const indices=[];for(let i=0;i<segments;i++)indices.push(0,i+1,i+2);
+          const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+          const material=new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
+          const mesh=new THREE.Mesh(geometry,material);mesh.rotation.order="YXZ";mesh.renderOrder=4;mesh.visible=false;mesh.userData.__coverage=true;ctx.scene.add(mesh);return mesh;
+        };
+        ctx.__coverageMeshes=new Map();
+        ctx.__coverageMakeCone=makeCone;
+      },beforeRender(ctx){
+        const settings=coverageRef.current;
+        const seen=new Set();
+        const teamFor=(car)=>{
+          const roster=coverageRosterRef.current.find(x=>x.id===String(car?.id));
+          return Number(car?.team??roster?.team)===0?"blue":"orange";
+        };
+        const getVector=(v)=>{
+          if(!v)return null;
+          if(v.isVector3)return v;
+          if(Array.isArray(v)&&v.length>=3)return new THREE.Vector3(Number(v[0])||0,Number(v[1])||0,Number(v[2])||0);
+          if(Number.isFinite(Number(v.x))&&Number.isFinite(Number(v.y))&&Number.isFinite(Number(v.z)))return new THREE.Vector3(Number(v.x),Number(v.y),Number(v.z));
+          return null;
+        };
+        const getPosition=(car)=>getVector(car?.position||car?.physics?.position||car?.location||car?.physics?.location);
+        const getQuaternion=(car)=>car?.quaternion?.isQuaternion?car.quaternion:null;
+        const getYaw=(car)=>{
+          const q=getQuaternion(car);
+          if(q){const f=new THREE.Vector3(0,0,1).applyQuaternion(q);f.y=0;if(f.lengthSq()>1e-6)return Math.atan2(f.x,f.z)}
+          const r=car?.rotation||car?.physics?.rotation;
+          if(r?.isEuler)return r.y;
+          if(r&&Number.isFinite(Number(r.yaw)))return Number(r.yaw);
+          if(r&&Number.isFinite(Number(r.Yaw)))return Number(r.Yaw);
+          if(Array.isArray(r)&&r.length>=2)return Number(r[1]);
+          return null;
+        };
+        (ctx.cars||[]).forEach(car=>{
+          const id=String(car.id);seen.add(id);
+          let mesh=ctx.__coverageMeshes.get(id);if(!mesh){mesh=ctx.__coverageMakeCone();ctx.__coverageMeshes.set(id,mesh)}
+          const team=teamFor(car),pos=getPosition(car),yaw=getYaw(car);
+          const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!pos&&yaw!==null;
+          mesh.visible=visible;
+          if(!visible)return;
+          mesh.position.set(pos.x,1.5,pos.z);mesh.rotation.set(0,yaw,0);mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);
+        });
+        for(const [id,mesh] of ctx.__coverageMeshes){if(!seen.has(id))mesh.visible=false}
+      },teardown(ctx){for(const mesh of ctx.__coverageMeshes?.values()||[]){mesh.geometry.dispose();mesh.material.dispose();ctx.scene.remove(mesh)}ctx.__coverageMeshes?.clear()}
+      });
       const povBoostPlugin=()=>({id:"pov-boost-hud",beforeRender(ctx){const hud=povBoostHudRef.current;if(!hud)return;const id=selectedRef.current;const car=id?ctx.cars.find(c=>c.id===id):null;if(!car){hud.style.display="none";return}const boost=Math.max(0,Math.min(100,Math.round(Number(car.boost)||0)));hud.style.display="flex";hud.style.setProperty("--boost",boost+"%");const value=hud.querySelector(".povBoostValue");const fill=hud.querySelector(".povBoostFill");if(value)value.textContent=String(boost);if(fill)fill.style.width=boost+"%"}});
-      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),hideBallIndicatorPlugin(),povBoostPlugin(),createScoredTextPlugin()]});
+      const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),hideBallIndicatorPlugin(),povBoostPlugin(),coveragePlugin(),createScoredTextPlugin()]});
       player.current=p;
       const renderer=p.renderer;
       renderer?.setPixelRatio?.(1);
@@ -196,6 +257,7 @@ function App(){
       const slots=[...blue.slice(0,3),...orange.slice(0,3)];
       setPlayers(mapped.map(x=>({id:x.id,name:x.name})));
       setPovSlots(slots);
+      resetCoveragePlayers(mapped);
       selectedRef.current="";setSelected("");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
       setLoaded(true);setStatus(file.name);
@@ -210,8 +272,18 @@ function App(){
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
       {loaded&&<div className="hud"><div ref={povBoostHudRef} className="povBoostHud"><div className="povBoostValue">0</div><div className="povBoostLabel">BOOST</div><div className="povBoostBar"><div className="povBoostFill"/></div></div>
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
-        <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
-        {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p><p><kbd>M</kbd><span>Show / Hide mini-map</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Shift</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
+        <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className={"controlsToggle "+(coverageEnabled?"active":"")} onClick={()=>setCoverageOpen(v=>!v)}>Coverage</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
+        {coverageOpen&&<div className="coveragePanel">
+          <div className="coverageHeader"><strong>Coverage</strong><button onClick={toggleCoverage}>{coverageEnabled?"ON":"OFF"}</button></div>
+          <div className="coverageTeams">
+            {["blue","orange"].map(team=><div key={team} className="coverageTeam">
+              <button className={"coverageTeamToggle "+team+(coverageTeams[team]?" on":"")} onClick={()=>toggleCoverageTeam(team)}>{team==="blue"?"Blue":"Orange"}</button>
+              <div className="coveragePlayers">{coverageRosterRef.current.filter(p=>p.team===(team==="blue"?0:1)).slice(0,3).map(p=><button key={p.id} className={"coveragePlayer "+team+(coveragePlayers[p.id]!==false?" on":"")} onClick={()=>toggleCoveragePlayer(p.id)} title={p.name}>{p.name}</button>)}</div>
+            </div>)}
+          </div>
+          <div className="coverageHint">110° · 1900 UU · follows car direction</div>
+        </div>}
+        {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Shift</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
         <div className="povBar" style={{bottom:controlsVisible&&!drawMode?`${controlsHeight+18}px`:"12px"}} aria-label="Player POV shortcuts">{povSlots.map((p,i)=><button key={p.id} className={"povSlot "+(p.team===0?"blue":"orange")+" "+(selected===p.id?"active":"")} onClick={()=>choosePovSlot(i+1)} title={p.name+" POV"}><kbd>{i+1}</kbd><span>{p.name}</span></button>)}</div>
         {controlsVisible&&!drawMode&&<div ref={controlsRef} className="controls">
           <div className="timeline">
