@@ -66,3 +66,17 @@
 .hud:has(.drawSettings) .povBar{bottom:12px}
 @media(max-width:900px){.povBar{gap:4px;width:calc(100% - 16px)}.povSlot{padding:5px 6px;font-size:11px}.povSlot kbd{padding:2px 4px}}
 @media(max-width:600px){.povBar{gap:3px;width:calc(100% - 10px)}.povSlot{padding:4px 4px;font-size:10px}.povSlot kbd{font-size:10px;padding:1px 3px}}
+
+
+/* Bottom HUD spacing refinements */
+.controls{width:min(990px,calc(100% - 24px));z-index:40}
+.controls .timeline{padding-left:4px;padding-right:4px}
+.controls .bottom{padding-left:4px;padding-right:4px}
+.utilityButtons{position:absolute;top:10px;right:10px;z-index:70}
+.povBoostHud{width:107px;height:107px;right:18px;bottom:58px;z-index:50}
+.povBoostHud:after{inset:9px}
+.povBoostValue{font-size:36px}
+.povBoostLabel{bottom:17px;font-size:8px}
+@media(max-width:900px){
+  .controls{width:min(891px,calc(100% - 16px))}
+}
