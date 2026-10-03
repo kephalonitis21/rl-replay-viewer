@@ -173,6 +173,8 @@ function App(){
             <button onClick={toggleDraw}>Draw</button>
             <button onClick={fullscreen}>Fullscreen</button>
           </div>
+          <div className="hints">Press <b>?</b> for shortcuts · <b>Space</b> Play/Pause · <b>V</b> Draw · <b>F</b> Fly Cam</div>
+        </div>}
           {drawMode&&<div className="drawSettings">
             <div className="drawSettingsHeader"><strong>Draw Settings</strong><button onClick={exitDraw}>Exit Draw</button></div>
             <div className="drawColors" aria-label="Marker color">
@@ -181,8 +183,6 @@ function App(){
             <label className="drawSize">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/><span>{drawThickness}px</span></label>
             <div className="drawActions"><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button><button onClick={clearDraw}>Clear</button></div>
           </div>}
-          <div className="hints">Press <b>?</b> for shortcuts · <b>Space</b> Play/Pause · <b>V</b> Draw · <b>F</b> Fly Cam</div>
-        </div>}
       </div>}
     </section>
     <footer>Runs entirely in your browser. Replay data is not uploaded.</footer>
