@@ -116,7 +116,8 @@ function App(){
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin,createBallchasingOverlayPlugin}=await import("@rlrml/player");
-      const cameraContextBridgePlugin=()=>({id:"camera-context-bridge",setup(ctx){ctx.scene.camera=ctx.camera;}});\n      const ballOverlayPlugin=()=>createBallchasingOverlayPlugin({showFloatingNames:false,showFloatingBoostBars:true,showTeamBoostHud:false,showFollowedPlayerHud:true});
+      const cameraContextBridgePlugin=()=>({id:"camera-context-bridge",setup(ctx){ctx.scene.camera=ctx.camera;}});
+      const ballOverlayPlugin=()=>createBallchasingOverlayPlugin({showFloatingNames:false,showFloatingBoostBars:true,showTeamBoostHud:false,showFollowedPlayerHud:true});
       const boostCirclePlugin=()=>({id:"boost-circles",beforeRender(ctx){ctx.container.querySelectorAll(".sap-bc-boost-text").forEach(el=>{const m=el.textContent?.match(/^\s*(\d+)/);if(m){el.textContent=m[1];el.parentElement?.style.setProperty("--boost",m[1]+"%")}})}});
       const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
       const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
