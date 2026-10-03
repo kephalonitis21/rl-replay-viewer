@@ -210,8 +210,9 @@ function App(){
           const material=new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide});
           const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=20;mesh.visible=false;ctx.scene.add(mesh);return mesh;
         };
+        const seen=new Set();
         return {id:"coverage-cones",setup(){},beforeRender(ctx){
-          const settings=coverageRef.current;const seen=new Set();
+          const settings=coverageRef.current;seen.clear();
           for(const car of ctx.cars||[]){
             const id=String(car.id);seen.add(id);let mesh=meshes.get(id);if(!mesh){mesh=makeCone(ctx);meshes.set(id,mesh)}
             const team=Number(car.team)===0?"blue":"orange";const object=car.object3d;
