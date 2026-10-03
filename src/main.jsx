@@ -68,7 +68,7 @@ function App(){
   function toggleDraw(){setDrawMode(v=>{const next=!v;const p=player.current;if(p?.controls)p.controls.enabled=!next&&!flyModeRef.current;return next})}
   function handleDrawPointerDown(e){if(!drawMode)return;e.currentTarget.setPointerCapture?.(e.pointerId);startDraw(e)}
   function handleDrawPointerMove(e){if(drawMode)moveDraw(e)}
-  function handleViewportPointerDown(){if(flyModeRef.current)lockFly()}
+  function handleViewportPointerDown(e){if(!flyModeRef.current)return;const t=e.target;if(t?.closest?.(".controls,.utilityButtons,.shortcutsPanel,button,select,input,label"))return;lockFly()}
   function undoDraw(){if(drawHistory.current.length){drawRedo.current.push(drawHistory.current.pop());redraw()}}
   function redoDraw(){if(drawRedo.current.length){drawHistory.current.push(drawRedo.current.pop());redraw()}}
   function cameraPose(position,target,up=[0,1,0],fov=48){const p=player.current;if(!p)return;p.setState({attachedPlayerId:null,cameraViewMode:"free"});const c=p.camera;c.position.set(...position);c.up.set(...up);c.fov=fov;c.updateProjectionMatrix();c.lookAt(...target);p.controls.target.set(...target);p.controls.update();setSelected("");setCameraMode("free");flyModeRef.current=false}
