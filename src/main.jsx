@@ -187,7 +187,7 @@ function App(){
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
       const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
       const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
-      const coveragePlugin=()=>{
+      const povBoostPlugin=()=>({id:"pov-boost-hud",beforeRender(ctx){const hud=povBoostHudRef.current;if(!hud)return;const id=selectedRef.current;const car=id?ctx.cars.find(c=>c.id===id):null;if(!car){hud.style.display="none";return}const boost=Math.max(0,Math.min(100,Math.round(Number(car.boost)||0)));hud.style.display="flex";hud.style.setProperty("--boost",boost+"%");const value=hud.querySelector(".povBoostValue");const fill=hud.querySelector(".povBoostFill");if(value)value.textContent=String(boost);if(fill)fill.style.width=boost+"%"}});\n      const coveragePlugin=()=>{
         const meshes=new Map();
         const makeCone=(ctx)=>{
           const width=THREE.MathUtils.degToRad(110),range=1900,segments=24;
