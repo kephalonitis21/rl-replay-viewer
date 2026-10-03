@@ -206,7 +206,7 @@ function App(){
             const team=Number(car.team)===0?"blue":"orange";const object=car.object3d;
             const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!object&&car.visible!==false;
             mesh.visible=visible;if(!visible)continue;
-            object.getWorldPosition(mesh.position);object.getWorldQuaternion(mesh.quaternion);mesh.position.y+=1.5;
+            object.getWorldPosition(mesh.position);object.getWorldQuaternion(mesh.quaternion);mesh.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI/2));mesh.position.y+=1.5;
             mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);mesh.material.opacity=settings.opacity??.32;
           }
           for(const [id,mesh] of meshes){if(!seen.has(id))mesh.visible=false}
