@@ -55,3 +55,13 @@
   .drawActions{gap:4px}
   .drawActions button{padding:5px 6px}
 }
+
+
+/* Persistent player POV selector */
+.povBar{position:absolute;left:50%;bottom:calc(50% - 20px);transform:translate(-50%,50%);z-index:54;pointer-events:auto;display:flex;align-items:stretch;gap:5px;width:min(900px,calc(100% - 24px));justify-content:center}
+.povSlot{flex:1 1 0;min-width:0;padding:6px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;gap:6px;overflow:hidden;color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px #000;background:#1e40afcc;box-shadow:0 3px 10px #0007;cursor:pointer;transition:filter .12s,transform .12s,box-shadow .12s,border-color .12s}
+.povSlot.orange{background:#c2410ccc}.povSlot:hover{filter:brightness(1.12);transform:translateY(-1px)}.povSlot.active{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.55),0 4px 14px #0009}.povSlot kbd{font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace;background:#0005;border:1px solid #fff5;border-radius:4px;padding:2px 5px;flex:none}.povSlot span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud .controls{margin-bottom:0}.hud:has(.controls) .povBar{bottom:calc(50% - 62px)}
+.drawSettings + .povBar{bottom:calc(50% - 62px)}
+@media(max-width:900px){.povBar{gap:4px;width:calc(100% - 16px)}.povSlot{padding:5px 6px;font-size:11px}.povSlot kbd{padding:2px 4px}}
+@media(max-width:600px){.povBar{gap:3px;width:calc(100% - 10px)}.povSlot{padding:4px 4px;font-size:10px}.povSlot kbd{font-size:10px;padding:1px 3px}}
