@@ -6,7 +6,7 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),loadedRef=useRef(false),povSlotsRef=useRef([]),playingRef=useRef(false),durationRef=useRef(0),progressRef=useRef(0),shortcutsOpenRef=useRef(false),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{},opacity:0.32}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),replayLoadRef=useRef(0),loadedRef=useRef(false),povSlotsRef=useRef([]),playingRef=useRef(false),durationRef=useRef(0),progressRef=useRef(0),shortcutsOpenRef=useRef(false),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{},opacity:0.32}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
   const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]),[coverageOpen,setCoverageOpen]=useState(false),[coverageEnabled,setCoverageEnabled]=useState(false),[coverageTeams,setCoverageTeams]=useState({blue:true,orange:true}),[coveragePlayers,setCoveragePlayers]=useState({}),[coverageOpacity,setCoverageOpacity]=useState(0.32);
 
@@ -191,6 +191,7 @@ function App(){
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
     try{
+      const loadId=++replayLoadRef.current;
       setStatus("Loading replay…");setLoaded(false);loadedRef.current=false;setPlaying(false);playingRef.current=false;setProgress(0);progressRef.current=0;setDuration(0);durationRef.current=0;setReplayBallCam(true);
       player.current?.dispose?.();player.current=null;host.current?.replaceChildren();
       const bytes=new Uint8Array(await file.arrayBuffer());
@@ -225,6 +226,7 @@ function App(){
         },teardown(ctx){for(const mesh of meshes.values()){mesh.geometry.dispose();mesh.material.dispose();ctx.scene.remove(mesh)}meshes.clear()}};
       };
       const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),hideBallIndicatorPlugin(),povBoostPlugin(),coveragePlugin(),createScoredTextPlugin()]});
+      if(loadId!==replayLoadRef.current){p.dispose?.();return}
       player.current=p;
       const renderer=p.renderer;
       renderer?.setPixelRatio?.(1);
@@ -260,7 +262,7 @@ function App(){
       selectedRef.current="";setSelected("");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
       setLoaded(true);loadedRef.current=true;setStatus(file.name);
-    }catch(err){console.error(err);setStatus("Could not load this replay.");setLoaded(false);}
+    }catch(err){console.error(err);if(loadId===replayLoadRef.current){setStatus("Could not load this replay.");setLoaded(false);}}
   }
   function drop(e){e.preventDefault();loadReplay(e.dataTransfer.files?.[0])}
 
