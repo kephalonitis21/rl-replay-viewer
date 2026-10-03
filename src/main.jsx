@@ -6,7 +6,7 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null);
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false);
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false);
   const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
 
@@ -82,9 +82,29 @@ function App(){
   function deleteCustomCamera(id){const next=customCameras.filter(x=>x.id!==id);setCustomCameras(next);localStorage.setItem(CAMERA_STORAGE,JSON.stringify(next));if(cameraPreset==="custom:"+id)setCameraPreset("")}
   function startFlyLoop(){if(flyFrame.current)return;const tick=(now)=>{const p=player.current;if(!p||!flyModeRef.current){flyFrame.current=null;return}const dt=Math.min(.05,(now-flyState.current.last)/1000);flyState.current.last=now;const c=p.camera,spd=1400,forward=new THREE.Vector3(0,0,-1).applyQuaternion(c.quaternion),right=new THREE.Vector3(1,0,0).applyQuaternion(c.quaternion);if(flyKeys.current.has("KeyW"))c.position.addScaledVector(forward,spd*dt);if(flyKeys.current.has("KeyS"))c.position.addScaledVector(forward,-spd*dt);if(flyKeys.current.has("KeyD"))c.position.addScaledVector(right,spd*dt);if(flyKeys.current.has("KeyA"))c.position.addScaledVector(right,-spd*dt);if(flyKeys.current.has("ShiftLeft")||flyKeys.current.has("ShiftRight"))c.position.y+=1400*dt;if(flyKeys.current.has("ControlLeft")||flyKeys.current.has("ControlRight"))c.position.y-=1400*dt;p.controls.target.copy(c.position).addScaledVector(forward,1000);flyFrame.current=requestAnimationFrame(tick)};flyFrame.current=requestAnimationFrame(tick)}
   function toggleFly(){const p=player.current;if(!p)return;const next=!flyModeRef.current;flyModeRef.current=next;setCameraMode(next?"fly":"free");p.setState({attachedPlayerId:null,cameraViewMode:"free"});p.controls.enabled=!next&&!drawMode;flyLook.current={active:false,x:0,y:0};if(next){const e=new THREE.Euler().setFromQuaternion(p.camera.quaternion,"YXZ");flyState.current={yaw:e.y,pitch:e.x,last:performance.now()};flyKeys.current.clear();startFlyLoop()}else{flyKeys.current.clear();if(flyFrame.current){cancelAnimationFrame(flyFrame.current);flyFrame.current=null}}}
-  function onFlyPointerDown(e){if(!flyModeRef.current||drawMode||e.button!==0)return;const el=e.target instanceof Element?e.target:null;if(el?.closest("button,select,input,label,.shortcutsPanel,.drawSettings,.utilityButtons"))return;flyLook.current={active:true,x:e.clientX,y:e.clientY};e.currentTarget.setPointerCapture?.(e.pointerId);e.preventDefault()}
-  function onFlyPointerMove(e){if(!flyModeRef.current||!flyLook.current.active)return;const s=flyState.current;s.yaw-=(e.clientX-flyLook.current.x)*.002;s.pitch=Math.max(-1.45,Math.min(1.45,s.pitch-(e.clientY-flyLook.current.y)*.002));flyLook.current.x=e.clientX;flyLook.current.y=e.clientY;player.current?.camera.rotation.set(s.pitch,s.yaw,0,"YXZ")}
-  function endFlyLook(e){flyLook.current.active=false;try{e?.currentTarget?.releasePointerCapture?.(e.pointerId)}catch{}}
+  function flyPointerDown(e){
+    if(!flyModeRef.current||drawModeRef.current||e.button!==0)return;
+    flyLook.current={active:true,x:e.clientX,y:e.clientY};
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    e.currentTarget.style.cursor="grabbing";
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  function flyPointerMove(e){
+    if(!flyModeRef.current||!flyLook.current.active)return;
+    const s=flyState.current;
+    s.yaw-=(e.clientX-flyLook.current.x)*.002;
+    s.pitch=Math.max(-1.45,Math.min(1.45,s.pitch-(e.clientY-flyLook.current.y)*.002));
+    flyLook.current.x=e.clientX;
+    flyLook.current.y=e.clientY;
+    player.current?.camera.rotation.set(s.pitch,s.yaw,0,"YXZ");
+    e.preventDefault();
+  }
+  function flyPointerUp(e){
+    flyLook.current.active=false;
+    try{e?.currentTarget?.releasePointerCapture?.(e.pointerId)}catch{}
+    if(e?.currentTarget)e.currentTarget.style.cursor="grab";
+  }
   useEffect(()=>{
     function key(e){
       if(!loaded)return;
@@ -110,7 +130,28 @@ function App(){
   });
 
   useEffect(()=>{const down=e=>{if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();flyKeys.current.add(e.code)}};const up=e=>flyKeys.current.delete(e.code);const clear=()=>{flyKeys.current.clear();flyLook.current.active=false};window.addEventListener("keydown",down,true);window.addEventListener("keyup",up,true);window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{window.removeEventListener("keydown",down,true);window.removeEventListener("keyup",up,true);window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear)}});
-  useEffect(()=>{const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
+  useEffect(()=>{drawModeRef.current=drawMode;const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
+  useEffect(()=>{
+    const canvas=player.current?.renderer?.domElement;
+    if(!canvas||!loaded)return;
+    canvas.classList.add("flyCamCanvas");
+    canvas.style.touchAction="none";
+    canvas.style.cursor=flyModeRef.current?"grab":"default";
+    canvas.addEventListener("pointerdown",flyPointerDown,true);
+    canvas.addEventListener("pointermove",flyPointerMove,true);
+    canvas.addEventListener("pointerup",flyPointerUp,true);
+    canvas.addEventListener("pointercancel",flyPointerUp,true);
+    return()=>{
+      canvas.removeEventListener("pointerdown",flyPointerDown,true);
+      canvas.removeEventListener("pointermove",flyPointerMove,true);
+      canvas.removeEventListener("pointerup",flyPointerUp,true);
+      canvas.removeEventListener("pointercancel",flyPointerUp,true);
+      canvas.classList.remove("flyCamCanvas");
+      canvas.style.touchAction="";
+      canvas.style.cursor="";
+      flyLook.current.active=false;
+    };
+  },[loaded,cameraMode]);
 
   useEffect(()=>{resizeDrawing();const ro=new ResizeObserver(resizeDrawing);if(viewport.current)ro.observe(viewport.current);window.addEventListener("resize",resizeDrawing);return()=>{ro.disconnect();window.removeEventListener("resize",resizeDrawing)}},[loaded]);
   useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none")},[miniMapVisible,loaded]);
@@ -132,12 +173,17 @@ function App(){
       renderer?.setPixelRatio?.(1);
       if(renderer?.shadowMap)renderer.shadowMap.enabled=false;
       p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setRecordedBallCam(!!s.ballCamEnabled);setReplayBallCam(s.useReplayBallCam!==false);setSpeed(s.speed||1)});
-      const roster=p.replay?.players||[];
-      const mapped=roster.map((x,index)=>({id:x.id,name:x.name||"Player",team:Number(x.team),index}));
+      const replayRoster=Array.isArray(p.replay?.players)?p.replay.players:[];
+      const adapterRoster=typeof p.adapter?.getAllPlayers==="function"?p.adapter.getAllPlayers():[];
+      const sourceRoster=replayRoster.length?replayRoster:adapterRoster;
+      const mapped=sourceRoster.map((x,index)=>{
+        const team=Number.isFinite(Number(x.team))?Number(x.team):(x.isTeamZero?0:1);
+        return {id:String(x.id),name:x.name||"Player",team,index};
+      });
       const blue=mapped.filter(x=>x.team===0).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})||a.index-b.index);
       const orange=mapped.filter(x=>x.team===1).sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"})||a.index-b.index);
       const slots=[...blue.slice(0,3),...orange.slice(0,3)];
-      setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));
+      setPlayers(mapped.map(x=>({id:x.id,name:x.name})));
       setPovSlots(slots);
       selectedRef.current="";setSelected("");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
@@ -148,7 +194,7 @@ function App(){
 
   return <main className="app">
     <header><div><h1>RL Replay Viewer</h1><span>Season 24 browser playback</span></div><label className="fileButton">Open replay<input type="file" accept=".replay" onChange={e=>loadReplay(e.target.files?.[0])}/></label></header>
-    <section className="viewer" ref={viewport} onPointerDown={onFlyPointerDown} onPointerMove={onFlyPointerMove} onPointerUp={endFlyLook} onPointerCancel={endFlyLook} onDragOver={e=>e.preventDefault()} onDrop={drop}>
+    <section className="viewer" ref={viewport} onDragOver={e=>e.preventDefault()} onDrop={drop}>
       <div className="playerHost" ref={host}/><canvas ref={drawCanvas} className={"drawCanvas "+(drawMode?"active":"")} onPointerDown={handleDrawPointerDown} onPointerMove={handleDrawPointerMove} onPointerUp={endDraw} onPointerCancel={endDraw}/>
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
       {loaded&&<div className="hud"><div ref={povBoostHudRef} className="povBoostHud"><div className="povBoostValue">0</div><div className="povBoostLabel">BOOST</div><div className="povBoostBar"><div className="povBoostFill"/></div></div>
