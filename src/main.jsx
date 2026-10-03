@@ -6,9 +6,9 @@ const ASSETS="https://cdn.jsdelivr.net/npm/@rlrml/player@1.3.1/public/";
 const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 
 function App(){
-  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{}}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
+  const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null),coverageRef=useRef({enabled:false,blue:true,orange:true,players:{},opacity:0.32}),coverageRosterRef=useRef([]),coverageMeshesRef=useRef(new Map());
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
-  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]),[coverageOpen,setCoverageOpen]=useState(false),[coverageEnabled,setCoverageEnabled]=useState(false),[coverageTeams,setCoverageTeams]=useState({blue:true,orange:true}),[coveragePlayers,setCoveragePlayers]=useState({});
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]),[coverageOpen,setCoverageOpen]=useState(false),[coverageEnabled,setCoverageEnabled]=useState(false),[coverageTeams,setCoverageTeams]=useState({blue:true,orange:true}),[coveragePlayers,setCoveragePlayers]=useState({}),[coverageOpacity,setCoverageOpacity]=useState(0.32);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
@@ -64,7 +64,7 @@ function App(){
   function syncCoverageSettings(next){
     coverageRef.current=next;
     setCoverageEnabled(next.enabled);
-    setCoverageTeams({blue:next.blue,orange:next.orange});
+    setCoverageTeams({blue:next.blue,orange:next.orange});setCoverageOpacity(next.opacity??0.32);
     setCoveragePlayers({...next.players});
   }
   function toggleCoverage(){syncCoverageSettings({...coverageRef.current,enabled:!coverageRef.current.enabled})}
@@ -196,17 +196,18 @@ function App(){
           positions.set([0,0,0],0);
           for(let i=0;i<=segments;i++){const a=-width/2+(width*i/segments);const o=(i+1)*3;positions[o]=Math.sin(a)*range;positions[o+1]=0;positions[o+2]=Math.cos(a)*range;if(i<segments)indices.push(0,i+1,i+2)}
           const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));geometry.setIndex(indices);
-          const material=new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
-          const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=4;mesh.visible=false;ctx.scene.add(mesh);return mesh;
+          const material=new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide});
+          const mesh=new THREE.Mesh(geometry,material);mesh.renderOrder=20;mesh.visible=false;ctx.scene.add(mesh);return mesh;
         };
         return {id:"coverage-cones",setup(){},beforeRender(ctx){
           const settings=coverageRef.current;const seen=new Set();
           for(const car of ctx.cars||[]){
             const id=String(car.id);seen.add(id);let mesh=meshes.get(id);if(!mesh){mesh=makeCone(ctx);meshes.set(id,mesh)}
-            const team=Number(car.team)===0?"blue":"orange";const pos=car.position;const q=car.rotation;
-            const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!pos&&!!q&&car.visible!==false;
+            const team=Number(car.team)===0?"blue":"orange";const object=car.object3d;
+            const visible=!!settings.enabled&&!!settings[team]&&settings.players[id]!==false&&!!object&&car.visible!==false;
             mesh.visible=visible;if(!visible)continue;
-            mesh.position.set(Number(pos.x)||0,1.5,Number(pos.z)||0);mesh.quaternion.set(Number(q.x)||0,Number(q.y)||0,Number(q.z)||0,Number(q.w)||1);mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);
+            object.getWorldPosition(mesh.position);object.getWorldQuaternion(mesh.quaternion);mesh.position.y+=1.5;
+            mesh.material.color.set(team==="blue"?0x3b82f6:0xf59e0b);mesh.material.opacity=settings.opacity??.32;
           }
           for(const [id,mesh] of meshes){if(!seen.has(id))mesh.visible=false}
         },teardown(ctx){for(const mesh of meshes.values()){mesh.geometry.dispose();mesh.material.dispose();ctx.scene.remove(mesh)}meshes.clear()}};
@@ -253,7 +254,7 @@ function App(){
               <div className="coveragePlayers">{coverageRosterRef.current.filter(p=>p.team===(team==="blue"?0:1)).slice(0,3).map(p=><button key={p.id} className={"coveragePlayer "+team+(coveragePlayers[p.id]!==false?" on":"")} onClick={()=>toggleCoveragePlayer(p.id)} title={p.name}>{p.name}</button>)}</div>
             </div>)}
           </div>
-          <div className="coverageHint">110° · 1900 UU · follows car direction</div>
+          <label className="coverageOpacity">Opacity <input type="range" min="0.10" max="0.70" step="0.05" value={coverageOpacity} onChange={e=>syncCoverageSettings({...coverageRef.current,opacity:Number(e.target.value)})}/><span>{Math.round(coverageOpacity*100)}%</span></label><div className="coverageHint">110° · 1900 UU · follows car direction</div>
         </div>}
         {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Shift</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
         <div className="povBar" style={{bottom:controlsVisible&&!drawMode?`${controlsHeight+18}px`:"12px"}} aria-label="Player POV shortcuts">{povSlots.map((p,i)=><button key={p.id} className={"povSlot "+(p.team===0?"blue":"orange")+" "+(selected===p.id?"active":"")} onClick={()=>choosePovSlot(i+1)} title={p.name+" POV"}><kbd>{i+1}</kbd><span>{p.name}</span></button>)}</div>
