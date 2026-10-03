@@ -8,7 +8,7 @@ const CAMERA_STORAGE="rl-replay-viewer-cameras-v1";
 function App(){
   const host=useRef(null),viewport=useRef(null),player=useRef(null),wasPlaying=useRef(false),nameplateScaleRef=useRef(1.5),drawCanvas=useRef(null),drawHistory=useRef([]),drawRedo=useRef([]),drawing=useRef(false),flyKeys=useRef(new Set()),flyFrame=useRef(null),flyModeRef=useRef(false),flyState=useRef({yaw:0,pitch:-0.2,last:0}),flyLook=useRef({active:false,x:0,y:0}),selectedRef=useRef(""),povBoostHudRef=useRef(null),drawModeRef=useRef(false),controlsRef=useRef(null);
   const [status,setStatus]=useState("Drop a .replay file here"),[loaded,setLoaded]=useState(false),[playing,setPlaying]=useState(false),[controlsHeight,setControlsHeight]=useState(105);
-  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[miniMapVisible,setMiniMapVisible]=useState(true),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
+  const [ballCam,setBallCam]=useState(false),[recordedBallCam,setRecordedBallCam]=useState(false),[replayBallCam,setReplayBallCam]=useState(true),[players,setPlayers]=useState([]),[povSlots,setPovSlots]=useState([]),[selected,setSelected]=useState(""),[progress,setProgress]=useState(0),[duration,setDuration]=useState(0),[speed,setSpeed]=useState(1),[controlsVisible,setControlsVisible]=useState(true),[nameplateScale,setNameplateScale]=useState(1.5),[drawMode,setDrawMode]=useState(false),[drawColor,setDrawColor]=useState("#ef4444"),[drawThickness,setDrawThickness]=useState(5),[drawTool,setDrawTool]=useState("pen"),[cameraMode,setCameraMode]=useState("free"),[cameraPreset,setCameraPreset]=useState(""),[shortcutsOpen,setShortcutsOpen]=useState(false),[customCameras,setCustomCameras]=useState(()=>{try{return JSON.parse(localStorage.getItem(CAMERA_STORAGE)||"[]")}catch{return[]}}),[boostVisible,setBoostVisible]=useState(true),[events,setEvents]=useState([]);
 
   useEffect(()=>()=>{try{player.current?.dispose?.()}catch{};if(flyFrame.current)cancelAnimationFrame(flyFrame.current)},[]);
 
@@ -18,7 +18,6 @@ function App(){
     setPlaying(next);
   }
   function togglePlay(){setPlayback(!playing)}
-  function reset(){player.current?.setState({currentTime:0,playing:false});setPlaying(false)}
   function seek(time, resume=playing){
     const p=player.current;if(!p||!duration)return;
     const t=Math.max(0,Math.min(duration,time));
@@ -114,7 +113,6 @@ function App(){
       if(editable)return;
       else if(e.code==="KeyV"){e.preventDefault();toggleDraw()}
       else if(e.code==="KeyF"){e.preventDefault();toggleFly()}
-      else if(e.code==="KeyM"){e.preventDefault();setMiniMapVisible(v=>!v)}
       else if(e.key==="?"){e.preventDefault();setShortcutsOpen(v=>!v)}
       else if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();return}
       else if(e.code==="Escape"){if(flyModeRef.current){e.preventDefault();toggleFly()}else if(drawMode){e.preventDefault();exitDraw()}else if(shortcutsOpen){e.preventDefault();setShortcutsOpen(false)}}
@@ -169,7 +167,6 @@ function App(){
   },[loaded,cameraMode]);
 
   useEffect(()=>{resizeDrawing();const ro=new ResizeObserver(resizeDrawing);if(viewport.current)ro.observe(viewport.current);window.addEventListener("resize",resizeDrawing);return()=>{ro.disconnect();window.removeEventListener("resize",resizeDrawing)}},[loaded]);
-  useEffect(()=>{const root=viewport.current;if(!root)return;root.querySelectorAll(".miniMapOverlay").forEach(el=>el.style.display=miniMapVisible?"block":"none")},[miniMapVisible,loaded]);
 
   async function loadReplay(file){
     if(!file?.name.toLowerCase().endsWith(".replay")){setStatus("Please choose a .replay file.");return}
@@ -180,7 +177,6 @@ function App(){
       const {createPlayer,createNameTagPlugin,createScoredTextPlugin}=await import("@rlrml/player");
       const hideBallIndicatorPlugin=()=>({id:"hide-ball-ground-line",setup(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)},beforeRender(ctx){ctx.player.ballVerticalLine&&(ctx.player.ballVerticalLine.visible=false)}});
       const nameplateScalePlugin=()=>({id:"nameplate-scale",beforeRender(ctx){const sc=nameplateScaleRef.current;ctx.scene.traverse(obj=>{if(!obj.isSprite||obj.renderOrder!==999)return;const image=obj.material?.map?.image;if(image?.width===256&&image?.height===80){const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());obj.scale.set(base.x*sc,base.y*sc,base.z)}})}});
-      const miniMapPlugin=()=>{let root=null,ballDot=null,dots=new Map();const map=v=>({x:50+(v.x/4120)*48,y:50-(v.z/5140)*48});return{id:"mini-map",setup(ctx){root=document.createElement("div");root.className="miniMapOverlay";root.innerHTML='<div class="miniMapField"><div class="miniMapGoal blue"></div><div class="miniMapGoal orange"></div><div class="miniMapBall"></div></div>';ctx.container.appendChild(root);ballDot=root.querySelector(".miniMapBall");ctx.player.adapter.getAllPlayers().forEach(p=>{const d=document.createElement("span");d.className="miniMapCar "+(p.team===0?"teamBlue":"teamOrange");root.firstElementChild.appendChild(d);dots.set(p.id,d)})},beforeRender(ctx){if(!root)return;const b=ctx.ball?.position;if(b){const q=map(b);ballDot.style.left=q.x+"%";ballDot.style.top=q.y+"%"}ctx.cars.forEach(car=>{const d=dots.get(car.id);if(d){const q=map(car.position);d.style.left=q.x+"%";d.style.top=q.y+"%";d.style.opacity=car.visible?"1":"0"}})},teardown(){root?.remove();dots.clear()}}};
       const povBoostPlugin=()=>({id:"pov-boost-hud",beforeRender(ctx){const hud=povBoostHudRef.current;if(!hud)return;const id=selectedRef.current;const car=id?ctx.cars.find(c=>c.id===id):null;if(!car){hud.style.display="none";return}const boost=Math.max(0,Math.min(100,Math.round(Number(car.boost)||0)));hud.style.display="flex";hud.style.setProperty("--boost",boost+"%");const value=hud.querySelector(".povBoostValue");const fill=hud.querySelector(".povBoostFill");if(value)value.textContent=String(boost);if(fill)fill.style.width=boost+"%"}});
       const p=await createPlayer(host.current,bytes,{assetBase:ASSETS,autoplay:false,effects:true,environment:false,motionInterpolation:"linear",initialSkipPostGoalTransitionsEnabled:true,plugins:[createNameTagPlugin(),nameplateScalePlugin(),hideBallIndicatorPlugin(),povBoostPlugin(),createScoredTextPlugin()]});
       player.current=p;
@@ -223,7 +219,6 @@ function App(){
           </div>
           <div className="bottom">
             <button onClick={togglePlay}>{playing?"Pause":"Play"}</button>
-            <button onClick={reset}>Reset</button>
             <select value={speed} onChange={e=>changeSpeed(e.target.value)} aria-label="Playback speed">
               {[0.25,0.5,1,1.5,2,4].map(x=><option key={x} value={x}>{x}×</option>)}
             </select>
@@ -234,7 +229,7 @@ function App(){
             </select>
             <select value={selected} onChange={e=>choose(e.target.value)}><option value="">Free Camera</option>{players.map(p=><option key={p.id} value={p.id}>{p.name} POV</option>)}</select>
             <select value={cameraPreset} onChange={e=>{const v=e.target.value;setCameraPreset(v);if(v.startsWith("custom:"))loadCustomCamera(v.slice(7));else if(v)builtInCamera(v)}} aria-label="Camera presets"><option value="">Camera preset…</option><option value="blue-goal">Blue Goal Overhead</option><option value="orange-goal">Orange Goal Overhead</option><option value="top">Full Field Top Down</option><option value="side">Mid Boost Side Wide</option>{customCameras.length>0&&<optgroup label="My Cameras">{customCameras.map(c=><option key={c.id} value={"custom:"+c.id}>{c.name}</option>)}</optgroup>}</select>
-            <button onClick={toggleFly}>{cameraMode==="fly"?"Exit Fly Cam":"Fly Cam"}</button><button onClick={saveCamera} disabled={cameraMode!=="fly"}>Save Camera</button><button onClick={()=>setMiniMapVisible(v=>!v)}>{miniMapVisible?"Hide Map":"Show Map"}</button>
+            <button onClick={toggleFly}>{cameraMode==="fly"?"Exit Fly Cam":"Fly Cam"}</button><button onClick={saveCamera} disabled={cameraMode!=="fly"}>Save Camera</button>
             {cameraPreset.startsWith("custom:")&&<button onClick={()=>deleteCustomCamera(cameraPreset.slice(7))}>Delete Camera</button>}
             <label className="nameplateControl">Names
               <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>changeNameplateScale(e.target.value)} aria-label="Nameplate size"/>
