@@ -20,7 +20,7 @@ export function createReplayPlugins({createNameTagPlugin,createScoredTextPlugin,
           const image=obj.material?.map?.image;
           if(image?.width===256&&image?.height===80){
             const base=obj.userData.__rlReplayNameplateBaseScale||(obj.userData.__rlReplayNameplateBaseScale=obj.scale.clone());
-            obj.scale.set(base.x*sc,base.y*sc,base.z);
+            obj.scale.set(base.x*sc,base.y*sc,base.z*sc);
           }
         });
       }
