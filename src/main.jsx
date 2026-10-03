@@ -136,7 +136,7 @@ function App(){
     return()=>window.removeEventListener("keydown",key);
   });
 
-  useEffect(()=>{const down=e=>{if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();flyKeys.current.add(e.code)}};const up=e=>flyKeys.current.delete(e.code);const clear=()=>{flyKeys.current.clear();flyLook.current.active=false};window.addEventListener("keydown",down,true);window.addEventListener("keyup",up,true);window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{window.removeEventListener("keydown",down,true);window.removeEventListener("keyup",up,true);window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear)}});
+  useEffect(()=>{const down=e=>{if(flyModeRef.current&&["KeyW","KeyA","KeyS","KeyD","ShiftLeft","ShiftRight","ControlLeft","ControlRight"].includes(e.code)){e.preventDefault();flyKeys.current.add(e.code)}};const up=e=>flyKeys.current.delete(e.code);const clear=()=>{flyKeys.current.clear();flyLook.current.active=false};window.addEventListener("keydown",down,true);window.addEventListener("keyup",up,true);window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{window.removeEventListener("keydown",down,true);window.removeEventListener("keyup",up,true);window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear)}},[]);
   useEffect(()=>{drawModeRef.current=drawMode;const p=player.current;if(p?.controls)p.controls.enabled=!drawMode&&!flyModeRef.current},[drawMode,cameraMode,loaded]);
   useEffect(()=>{const el=controlsRef.current;if(!el||!controlsVisible||drawMode){if(drawMode||!controlsVisible)setControlsHeight(0);return}const update=()=>setControlsHeight(el.offsetHeight);update();const ro=new ResizeObserver(update);ro.observe(el);return()=>ro.disconnect()},[controlsVisible,drawMode,loaded]);
   useEffect(()=>{
@@ -217,7 +217,21 @@ function App(){
       const renderer=p.renderer;
       renderer?.setPixelRatio?.(1);
       if(renderer?.shadowMap)renderer.shadowMap.enabled=false;
-      p.subscribe?.(s=>{setPlaying(!!s.playing);setProgress(s.currentTime||0);setDuration(s.duration||0);setBallCam(!!s.ballCamEnabled);setRecordedBallCam(!!s.ballCamEnabled);setReplayBallCam(s.useReplayBallCam!==false);setSpeed(s.speed||1)});
+      const uiState={time:-1,playing:null,duration:null,ballCam:null,replayBallCam:null,speed:null};
+      p.subscribe?.(s=>{
+        const time=s.currentTime||0;
+        const playing=!!s.playing;
+        const durationValue=s.duration||0;
+        const ballCamValue=!!s.ballCamEnabled;
+        const replayBallCamValue=s.useReplayBallCam!==false;
+        const speedValue=s.speed||1;
+        if(uiState.playing!==playing){uiState.playing=playing;setPlaying(playing)}
+        if(uiState.duration!==durationValue){uiState.duration=durationValue;setDuration(durationValue)}
+        if(uiState.ballCam!==ballCamValue){uiState.ballCam=ballCamValue;setBallCam(ballCamValue);setRecordedBallCam(ballCamValue)}
+        if(uiState.replayBallCam!==replayBallCamValue){uiState.replayBallCam=replayBallCamValue;setReplayBallCam(replayBallCamValue)}
+        if(uiState.speed!==speedValue){uiState.speed=speedValue;setSpeed(speedValue)}
+        if(Math.abs(time-uiState.time)>=0.05||!playing){uiState.time=time;setProgress(time)}
+      });
       const replayRoster=Array.isArray(p.replay?.players)?p.replay.players:[];
       const adapterRoster=typeof p.adapter?.getAllPlayers==="function"?p.adapter.getAllPlayers():[];
       const sourceRoster=replayRoster.length?replayRoster:adapterRoster;
