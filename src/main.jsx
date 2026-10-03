@@ -147,7 +147,7 @@ function App(){
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
         <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
         {shortcutsOpen&&<div className="shortcutsPanel"><div className="shortcutsHeader"><strong>Keyboard Shortcuts</strong><button onClick={()=>setShortcutsOpen(false)}>Close</button></div><div className="shortcutGrid"><div><h3>Playback</h3><p><kbd>Space</kbd><span>Play / Pause</span></p><p><kbd>←</kbd> <kbd>→</kbd><span>Seek ±0.1 sec</span></p><p><kbd>Shift</kbd> + <kbd>←</kbd> <kbd>→</kbd><span>Seek ±1 sec</span></p><p><kbd>Home</kbd><span>Go to beginning</span></p><p><kbd>End</kbd><span>Go to end</span></p><h3>Viewer</h3><p><kbd>V</kbd><span>Toggle drawing mode</span></p><p><kbd>F</kbd><span>Toggle Fly Cam</span></p><p><kbd>M</kbd><span>Show / Hide mini-map</span></p></div><div><h3>Fly Cam</h3><p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><span>Move</span></p><p><kbd>Space</kbd><span>Move up</span></p><p><kbd>Ctrl</kbd><span>Move down</span></p><p><kbd>Shift</kbd><span>Move faster</span></p><p><kbd>Mouse</kbd><span>Look around</span></p><p><kbd>Esc</kbd><span>Exit Fly Cam / close active mode</span></p><h3>Interface</h3><p><kbd>H</kbd><span>Hide / Show controls</span></p><p><kbd>?</kbd><span>Open / Close shortcuts</span></p></div></div></div>}
-        {controlsVisible&&<div className="controls">
+        {controlsVisible&&!drawMode&&<div className="controls">
           <div className="timeline">
             <button className="step" onClick={()=>nudge(-0.1)}>−0.1</button><div className="timelineTrack"><input aria-label="Replay timeline" type="range" min="0" max={duration||0} step="0.01" value={Math.min(progress,duration||0)} onPointerDown={beginScrub} onChange={scrub} onPointerUp={endScrub}/>{events.map(e=><button key={e.id} className={"eventMarker "+e.kind} style={{left:(duration?e.time/duration*100:0)+"%"}} title={e.kind+(e.player?" · "+e.player:"")+" · "+format(e.time)} onClick={()=>seek(e.time,false)}>{e.kind==="goal"?"⚽":e.kind==="shot"?"◉":e.kind==="save"?"🛡":"💥"}</button>)}</div><button className="step" onClick={()=>nudge(0.1)}>+0.1</button>
           </div>
@@ -170,8 +170,17 @@ function App(){
               <input type="range" min="0.75" max="3" step="0.05" value={nameplateScale} onChange={e=>changeNameplateScale(e.target.value)} aria-label="Nameplate size"/>
               <span>{nameplateScale.toFixed(2)}×</span>
             </label>
-            <div className="drawControls"><button onClick={toggleDraw}>{drawMode?"Exit Draw":"Draw"}</button>{drawMode&&<><select value={drawColor} onChange={e=>{setDrawColor(e.target.value);setDrawTool("pen")}}><option value="#ef4444">Red</option><option value="#3b82f6">Blue</option><option value="#ec4899">Pink</option><option value="#22c55e">Green</option></select><select value={drawTool} onChange={e=>setDrawTool(e.target.value)}><option value="pen">Pen</option><option value="erase">Erase</option></select><label className="thickness">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/></label><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button><button onClick={clearDraw}>Clear</button></>}</div>\n            <button onClick={fullscreen}>Fullscreen</button>
+            <button onClick={toggleDraw}>Draw</button>
+            <button onClick={fullscreen}>Fullscreen</button>
           </div>
+          {drawMode&&<div className="drawSettings">
+            <div className="drawSettingsHeader"><strong>Draw Settings</strong><button onClick={exitDraw}>Exit Draw</button></div>
+            <div className="drawColors" aria-label="Marker color">
+              {[["#ef4444","Red"],["#3b82f6","Blue"],["#ec4899","Pink"],["#22c55e","Green"]].map(([color,label])=><button key={color} className={"drawColor "+(drawColor===color?"selected":"")} style={{"--draw-color":color}} title={label} aria-label={label+" marker color"} onClick={()=>{setDrawColor(color);setDrawTool("pen")}} />)}
+            </div>
+            <label className="drawSize">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/><span>{drawThickness}px</span></label>
+            <div className="drawActions"><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button><button onClick={clearDraw}>Clear</button></div>
+          </div>}
           <div className="hints">Press <b>?</b> for shortcuts · <b>Space</b> Play/Pause · <b>V</b> Draw · <b>F</b> Fly Cam</div>
         </div>}
       </div>}
