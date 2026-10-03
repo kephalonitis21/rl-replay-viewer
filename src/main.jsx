@@ -85,8 +85,7 @@ function App(){
   function flyPointerDown(e){
     if(!flyModeRef.current||drawModeRef.current||e.button!==0)return;
     flyLook.current={active:true,x:e.clientX,y:e.clientY};
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    e.currentTarget.style.cursor="grabbing";
+    document.body.style.cursor="grabbing";
     e.preventDefault();
     e.stopPropagation();
   }
