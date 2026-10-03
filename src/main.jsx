@@ -178,7 +178,7 @@ function App(){
           {drawMode&&<div className="drawSettings">
             <div className="drawSettingsHeader"><strong>Draw Settings</strong><button onClick={exitDraw}>Exit Draw</button></div>
             <div className="drawColors" aria-label="Marker color">
-              {[["#ef4444","Red"],["#3b82f6","Blue"],["#ec4899","Pink"],["#22c55e","Green"]].map(([color,label])=><button key={color} className={"drawColor "+(drawColor===color?"selected":"")} style={{"--draw-color":color}} title={label} aria-label={label+" marker color"} onClick={()=>{setDrawColor(color);setDrawTool("pen")}} />)}
+              {[["#ef4444","Red"],["#3b82f6","Blue"],["#ec4899","Pink"],["#22c55e","Green"]].map(([color,label])=><button key={color} className={"drawColor "+(drawColor===color?"selected":"")} style={{background:color}} title={label} aria-label={label+" marker color"} onClick={()=>{setDrawColor(color);setDrawTool("pen")}} />)}
             </div>
             <label className="drawSize">Size<input type="range" min="1" max="20" value={drawThickness} onChange={e=>setDrawThickness(Number(e.target.value))}/><span>{drawThickness}px</span></label>
             <div className="drawActions"><button onClick={undoDraw}>Undo</button><button onClick={redoDraw}>Redo</button><button onClick={clearDraw}>Clear</button></div>
