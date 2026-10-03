@@ -46,7 +46,7 @@ function App(){
     setReplayBallCam(true);
     player.current?.setState({attachedPlayerId:id,cameraViewMode:"follow",useReplayBallCam:true});
   }
-  function choosePovSlot(slot){const entry=povSlots[slot-1];if(!entry)return;choose(entry.id)}
+  function choosePovSlot(slot){const entry=povSlots[slot-1];if(!entry)return;if(flyModeRef.current)toggleFly();choose(entry.id)}
   function setBallCamMode(mode){
     const p=player.current;
     if(!p)return;
@@ -137,15 +137,27 @@ function App(){
     canvas.classList.add("flyCamCanvas");
     canvas.style.touchAction="none";
     canvas.style.cursor=flyModeRef.current?"grab":"default";
-    canvas.addEventListener("pointerdown",flyPointerDown,true);
-    canvas.addEventListener("pointermove",flyPointerMove,true);
-    canvas.addEventListener("pointerup",flyPointerUp,true);
-    canvas.addEventListener("pointercancel",flyPointerUp,true);
+    const down=e=>{
+      if(!flyModeRef.current||drawModeRef.current||e.button!==0||e.target!==canvas)return;
+      flyPointerDown(e);
+    };
+    const move=e=>{
+      if(!flyLook.current.active)return;
+      flyPointerMove(e);
+    };
+    const up=e=>{
+      if(!flyLook.current.active)return;
+      flyPointerUp(e);
+    };
+    window.addEventListener("pointerdown",down,true);
+    window.addEventListener("pointermove",move,true);
+    window.addEventListener("pointerup",up,true);
+    window.addEventListener("pointercancel",up,true);
     return()=>{
-      canvas.removeEventListener("pointerdown",flyPointerDown,true);
-      canvas.removeEventListener("pointermove",flyPointerMove,true);
-      canvas.removeEventListener("pointerup",flyPointerUp,true);
-      canvas.removeEventListener("pointercancel",flyPointerUp,true);
+      window.removeEventListener("pointerdown",down,true);
+      window.removeEventListener("pointermove",move,true);
+      window.removeEventListener("pointerup",up,true);
+      window.removeEventListener("pointercancel",up,true);
       canvas.classList.remove("flyCamCanvas");
       canvas.style.touchAction="";
       canvas.style.cursor="";
