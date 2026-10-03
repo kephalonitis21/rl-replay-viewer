@@ -139,7 +139,7 @@ function App(){
       const slots=[...blue.slice(0,3),...orange.slice(0,3)];
       setPlayers(roster.map(x=>({id:x.id,name:x.name||"Player"})));
       setPovSlots(slots);
-      selectedRef.current=roster[0]?.id||"";setSelected(roster[0]?.id||"");
+      selectedRef.current="";setSelected("");
       setEvents((p.replay?.timelineEvents||[]).filter(e=>["goal","shot","save","demo","demolition"].includes(e.kind)).map((e,i)=>({id:i,time:e.time,kind:e.kind,player:e.playerName||""})));
       setLoaded(true);setStatus(file.name);
     }catch(err){console.error(err);setStatus("Could not load this replay.");setLoaded(false);}
