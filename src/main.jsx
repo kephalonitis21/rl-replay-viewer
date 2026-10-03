@@ -271,7 +271,7 @@ function App(){
     <section className="viewer" ref={viewport} onDragOver={e=>e.preventDefault()} onDrop={drop}>
       <div className="playerHost" ref={host}/><canvas ref={drawCanvas} className={"drawCanvas "+(drawMode?"active":"")} onPointerDown={handleDrawPointerDown} onPointerMove={handleDrawPointerMove} onPointerUp={endDraw} onPointerCancel={endDraw}/>
       {!loaded&&<div className="drop"><strong>{status}</strong><small>Drag a Rocket League .replay file here, or use Open replay.</small></div>}
-      {loaded&&<div className="hud"><div ref={povBoostHudRef} className="povBoostHud"><div className="povBoostValue">0</div><div className="povBoostLabel">BOOST</div><div className="povBoostBar"><div className="povBoostFill"/></div></div>
+      {loaded&&<div className="hud"><div ref={povBoostHudRef} className="povBoostHud"><div className="povBoostValue">0</div><div className="povBoostLabel">BOOST</div></div>
         <div className="top"><span>{status}</span><span>{duration?format(progress)+" / "+format(duration):""}</span></div>
         <div className="utilityButtons"><button className="controlsToggle" onClick={toggleControls}>{controlsVisible?"Hide controls":"Show controls"}</button><button className={"controlsToggle "+(coverageEnabled?"active":"")} onClick={()=>setCoverageOpen(v=>!v)}>Coverage</button><button className="controlsToggle" onClick={()=>setShortcutsOpen(v=>!v)}>⌨ Shortcuts</button></div>
         {coverageOpen&&<div className="coveragePanel">
